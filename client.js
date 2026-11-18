@@ -71,7 +71,6 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   const btnCustomizeAvatar = document.getElementById("btn-customize-avatar");
   const menuError = document.getElementById("menu-error");
   const btnSinglePlayer = document.getElementById("btn-single-player");
-  const createBotSelector = document.getElementById("create-bot-selector");
   const btnCreateRoom = document.getElementById("btn-create-room");
   const roomCodeInput = document.getElementById("room-code-input");
   const btnJoinRoom = document.getElementById("btn-join-room");
@@ -170,7 +169,6 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     players: [],
     bannerTimeout: null,
     chatOpen: false,
-    createBotCount: 0,
     blasterReadyAt: 0,
     blasterTickerId: null
   };
@@ -647,8 +645,13 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     }
 
     const count = roomState.players.length;
+    const maxHumans = 5 - botCount;
     if (count < 3) {
-      lobbyStatusMsg.textContent = `Need ${3 - count} more player(s) to start (min 3, max 5).`;
+      const needed = 3 - count;
+      lobbyStatusMsg.textContent =
+        botCount > 0
+          ? `1 bot active — need ${needed} more real player to start (max ${maxHumans - humanCount} more).`
+          : `Need ${needed} more player(s) to start (min 3, max 5).`;
       btnStartGame.disabled = true;
     } else if (!isHost) {
       lobbyStatusMsg.textContent = "Ready! Waiting for the room host to start...";
@@ -1846,19 +1849,10 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     spEngine.startMatch(nickname);
   });
 
-  createBotSelector.addEventListener("click", (e) => {
-    const pill = e.target.closest(".bot-pill");
-    if (!pill) return;
-    appState.createBotCount = Math.max(0, Math.min(2, Number(pill.dataset.bots) || 0));
-    createBotSelector.querySelectorAll(".bot-pill").forEach((el) => {
-      el.classList.toggle("active", el === pill);
-    });
-  });
-
   lobbyBotSelector.addEventListener("click", (e) => {
     const pill = e.target.closest(".bot-pill");
     if (!pill || pill.disabled || appState.mode !== "multiplayer" || !socket) return;
-    const botCount = Math.max(0, Math.min(2, Number(pill.dataset.bots) || 0));
+    const botCount = Math.max(0, Math.min(1, Number(pill.dataset.bots) || 0));
     socket.emit("set_room_bots", { botCount }, (res) => {
       if (res && !res.ok) {
         showError(lobbyError, res.error || "Could not update bots.");
@@ -1880,10 +1874,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     }
 
     btnCreateRoom.disabled = true;
-    socket.emit(
-      "create_room",
-      { nickname, avatar: avatarConfig, botCount: appState.createBotCount },
-      (res) => {
+    socket.emit("create_room", { nickname, avatar: avatarConfig }, (res) => {
       btnCreateRoom.disabled = false;
       if (!res || !res.ok) {
         showError(menuError, (res && res.error) || "Failed to create room.");
@@ -1904,7 +1895,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       setChatInputState(true, "Chat with your lobby...");
       appendChatMessage({
         type: "system",
-        text: `Room ${res.roomCode} created! Share the code with 2–4 friends.`
+        text: `Room ${res.roomCode} created! Share the code with friends or add a bot in the lobby.`
       });
       updateLobbyUI(res.room);
       scene3d.syncPlayers(res.room.players, null);
