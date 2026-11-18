@@ -31,8 +31,8 @@
       this.onWheelTick = options.onWheelTick || (() => {});
 
       this.scene = new THREE.Scene();
-      this.scene.background = new THREE.Color(0x9be2ff);
-      this.scene.fog = new THREE.Fog(0xb7ecff, 28, 76);
+      this.scene.background = new THREE.Color(0xf5efe6);
+      this.scene.fog = new THREE.Fog(0xf5efe6, 36, 86);
 
       const width = window.innerWidth || 1280;
       const height = window.innerHeight || 720;
@@ -58,8 +58,7 @@
       this.clock = new THREE.Clock();
       this.elapsed = 0;
 
-      this.treeCanopies = [];
-      this.clouds = [];
+      this.clockSecondHand = null;
       this.confetti = [];
       this.guesserDesks = [];
       this.avatarMap = new Map();
@@ -83,8 +82,8 @@
       this.currentDrawerId = null;
 
       this._setupLights();
-      this._buildSkyAndGround();
-      this._buildPerimeterForest();
+      this._buildClassroomRoom();
+      this._buildClassroomDecor();
       this._buildWhiteboard();
       this._buildDrawerDesk();
       this._buildGuesserDesks();
@@ -96,12 +95,12 @@
     }
 
     _setupLights() {
-      const hemi = new THREE.HemisphereLight(0xc2f0ff, 0x4ca64c, 0.78);
-      hemi.position.set(0, 25, 0);
+      const hemi = new THREE.HemisphereLight(0xfffdf7, 0xd4c3a3, 0.92);
+      hemi.position.set(0, 22, 0);
       this.scene.add(hemi);
 
-      const sun = new THREE.DirectionalLight(0xfff5dc, 1.18);
-      sun.position.set(14, 24, 15);
+      const sun = new THREE.DirectionalLight(0xfff7e6, 0.95);
+      sun.position.set(-12, 22, 16);
       sun.castShadow = true;
       sun.shadow.mapSize.set(1024, 1024);
       sun.shadow.camera.near = 2;
@@ -113,206 +112,282 @@
       sun.shadow.bias = -0.0005;
       this.scene.add(sun);
 
-      const fill = new THREE.DirectionalLight(0xd9f2ff, 0.35);
-      fill.position.set(-14, 10, -10);
+      const fill = new THREE.DirectionalLight(0xe0f2fe, 0.38);
+      fill.position.set(14, 12, 8);
       this.scene.add(fill);
     }
 
-    _buildSkyAndGround() {
-      // Sky dome gradient
-      const skyCanvas = document.createElement("canvas");
-      skyCanvas.width = 4;
-      skyCanvas.height = 256;
-      const sctx = skyCanvas.getContext("2d");
-      const grad = sctx.createLinearGradient(0, 0, 0, 256);
-      grad.addColorStop(0.0, "#38bdf8");
-      grad.addColorStop(0.45, "#7dd3fc");
-      grad.addColorStop(0.75, "#bae6fd");
-      grad.addColorStop(1.0, "#e0f2fe");
-      sctx.fillStyle = grad;
-      sctx.fillRect(0, 0, 4, 256);
-      const skyTex = new THREE.CanvasTexture(skyCanvas);
-      skyTex.encoding = THREE.sRGBEncoding;
-
-      const skyGeo = new THREE.SphereGeometry(78, 24, 16);
-      const skyMat = new THREE.MeshBasicMaterial({
-        map: skyTex,
-        side: THREE.BackSide,
-        depthWrite: false,
-        fog: false
-      });
-      this.scene.add(new THREE.Mesh(skyGeo, skyMat));
-
-      // Warm glowing sun in sky
-      const sunMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(3.2, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xfef08a, fog: false })
-      );
-      sunMesh.position.set(28, 36, -38);
-      this.scene.add(sunMesh);
-
-      // Low-poly clouds
-      const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, fog: false });
-      const cloudSpots = [
-        [-22, 20, -28, 1.3],
-        [16, 23, -34, 1.6],
-        [-8, 25, -42, 1.1],
-        [30, 19, -20, 1.2],
-        [-32, 18, -14, 1.0]
-      ];
-      cloudSpots.forEach(([x, y, z, scale]) => {
-        const group = new THREE.Group();
-        const puffs = [
-          [0, 0, 0, 1.8],
-          [-1.5, -0.3, 0.2, 1.3],
-          [1.6, -0.2, -0.1, 1.4],
-          [0.4, 0.7, 0.2, 1.2]
-        ];
-        puffs.forEach(([px, py, pz, r]) => {
-          const puff = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), cloudMat);
-          puff.position.set(px, py, pz);
-          group.add(puff);
-        });
-        group.position.set(x, y, z);
-        group.scale.setScalar(scale);
-        group.userData = { baseX: x, speed: 0.22 + scale * 0.08 };
-        this.scene.add(group);
-        this.clouds.push(group);
-      });
-
-      // Outer vibrant grass field
-      const grassGeo = new THREE.CircleGeometry(75, 48);
-      const grassMat = new THREE.MeshLambertMaterial({ color: 0x56c257 });
-      const grass = new THREE.Mesh(grassGeo, grassMat);
-      grass.rotation.x = -Math.PI / 2;
-      grass.receiveShadow = true;
-      this.scene.add(grass);
-
-      // Inner sunny clearing meadow patch
-      const clearingGeo = new THREE.CircleGeometry(14.5, 40);
-      const clearingMat = new THREE.MeshLambertMaterial({ color: 0x6cd962 });
-      const clearing = new THREE.Mesh(clearingGeo, clearingMat);
-      clearing.rotation.x = -Math.PI / 2;
-      clearing.position.set(0.4, 0.012, -1.6);
-      clearing.receiveShadow = true;
-      this.scene.add(clearing);
-
-      // Subtle darker grass ring accents and tiny low-poly flowers around perimeter
-      const flowerColors = [0xf472b6, 0xfacc15, 0xffffff, 0xfb923c];
-      for (let i = 0; i < 42; i += 1) {
-        const angle = (i / 42) * Math.PI * 2 + (i % 3) * 0.14;
-        const radius = 12.8 + (i % 5) * 2.2;
-        const fx = Math.cos(angle) * radius;
-        const fz = Math.sin(angle) * radius - 1.5;
-        // Keep direct behind-camera center corridor relatively tidy
-        if (fz > 8 && Math.abs(fx) < 6) continue;
-
-        const flower = new THREE.Group();
-        const stem = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.03, 0.03, 0.24, 5),
-          new THREE.MeshLambertMaterial({ color: 0x22c55e })
-        );
-        stem.position.y = 0.12;
-        const head = new THREE.Mesh(
-          new THREE.DodecahedronGeometry(0.11, 0),
-          new THREE.MeshLambertMaterial({
-            color: flowerColors[i % flowerColors.length]
-          })
-        );
-        head.position.y = 0.26;
-        flower.add(stem, head);
-        flower.position.set(fx, 0, fz);
-        this.scene.add(flower);
+    _buildClassroomRoom() {
+      // Clean honey-oak hardwood plank floor
+      const floorCanvas = document.createElement("canvas");
+      floorCanvas.width = 512;
+      floorCanvas.height = 512;
+      const fctx = floorCanvas.getContext("2d");
+      fctx.fillStyle = "#e6cfa8";
+      fctx.fillRect(0, 0, 512, 512);
+      const plankColors = ["#e2c799", "#ebd6b0", "#dcc08e", "#e7cfa3"];
+      for (let row = 0; row < 8; row += 1) {
+        const y = row * 64;
+        const offset = (row % 2) * 128;
+        for (let col = -1; col < 3; col += 1) {
+          fctx.fillStyle = plankColors[(row + col + 4) % plankColors.length];
+          fctx.fillRect(col * 256 + offset + 2, y + 2, 252, 60);
+        }
+        fctx.fillStyle = "rgba(120, 80, 40, 0.14)";
+        fctx.fillRect(0, y, 512, 2);
       }
+      const floorTex = new THREE.CanvasTexture(floorCanvas);
+      floorTex.encoding = THREE.sRGBEncoding;
+      floorTex.wrapS = THREE.RepeatWrapping;
+      floorTex.wrapT = THREE.RepeatWrapping;
+      floorTex.repeat.set(9, 9);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(76, 76),
+        new THREE.MeshLambertMaterial({ map: floorTex })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      this.scene.add(floor);
+
+      // Soft light-red classroom rug with woven carpet print under student desks
+      const rugCanvas = document.createElement("canvas");
+      rugCanvas.width = 256;
+      rugCanvas.height = 256;
+      const rctx = rugCanvas.getContext("2d");
+      rctx.fillStyle = "#f28b8b";
+      rctx.fillRect(0, 0, 256, 256);
+      // Tufted / woven carpet fiber print
+      for (let y = 0; y < 256; y += 4) {
+        rctx.fillStyle = y % 8 === 0 ? "rgba(185, 58, 58, 0.14)" : "rgba(255, 215, 215, 0.16)";
+        rctx.fillRect(0, y, 256, 2);
+      }
+      for (let x = 0; x < 256; x += 4) {
+        rctx.fillStyle = x % 8 === 0 ? "rgba(175, 52, 52, 0.1)" : "rgba(255, 225, 225, 0.12)";
+        rctx.fillRect(x, 0, 2, 256);
+      }
+      // Subtle repeating diamond-tuft carpet pattern
+      rctx.strokeStyle = "rgba(255, 238, 238, 0.28)";
+      rctx.lineWidth = 2;
+      for (let gy = 16; gy < 256; gy += 32) {
+        for (let gx = 16; gx < 256; gx += 32) {
+          rctx.beginPath();
+          rctx.moveTo(gx, gy - 8);
+          rctx.lineTo(gx + 8, gy);
+          rctx.lineTo(gx, gy + 8);
+          rctx.lineTo(gx - 8, gy);
+          rctx.closePath();
+          rctx.stroke();
+          rctx.fillStyle = "rgba(205, 72, 72, 0.18)";
+          rctx.fillRect(gx - 2, gy - 2, 4, 4);
+        }
+      }
+      const rugTex = new THREE.CanvasTexture(rugCanvas);
+      rugTex.encoding = THREE.sRGBEncoding;
+      rugTex.wrapS = THREE.RepeatWrapping;
+      rugTex.wrapT = THREE.RepeatWrapping;
+      rugTex.repeat.set(8, 5);
+
+      const rugOuter = new THREE.Mesh(
+        new THREE.BoxGeometry(15.4, 0.02, 8.6),
+        new THREE.MeshLambertMaterial({ color: 0xd96666 })
+      );
+      rugOuter.position.set(0.2, 0.01, 2.5);
+      rugOuter.receiveShadow = true;
+      this.scene.add(rugOuter);
+
+      const rugInner = new THREE.Mesh(
+        new THREE.BoxGeometry(14.6, 0.025, 7.8),
+        new THREE.MeshLambertMaterial({ map: rugTex })
+      );
+      rugInner.position.set(0.2, 0.014, 2.5);
+      rugInner.receiveShadow = true;
+      this.scene.add(rugInner);
+
+      const upperWallMat = new THREE.MeshLambertMaterial({ color: 0xa8dcfa });
+      const frontWallMat = new THREE.MeshLambertMaterial({
+        color: 0x1e3a8a,
+        emissive: 0x0b1a33,
+        emissiveIntensity: 0.25
+      });
+      const wainscotMat = new THREE.MeshLambertMaterial({ color: 0xd6b88d });
+      const trimMat = new THREE.MeshLambertMaterial({ color: 0x9c7344 });
+
+      // Front classroom wall behind whiteboard & spinwheel (z = -9.6)
+      const frontUpper = new THREE.Mesh(new THREE.BoxGeometry(34, 13, 0.4), frontWallMat);
+      frontUpper.position.set(0.5, 6.5, -9.6);
+      frontUpper.receiveShadow = true;
+      this.scene.add(frontUpper);
+
+      const frontWainscot = new THREE.Mesh(new THREE.BoxGeometry(34, 2.3, 0.46), wainscotMat);
+      frontWainscot.position.set(0.5, 1.15, -9.56);
+      frontWainscot.receiveShadow = true;
+      this.scene.add(frontWainscot);
+
+      const frontRail = new THREE.Mesh(new THREE.BoxGeometry(34, 0.16, 0.52), trimMat);
+      frontRail.position.set(0.5, 2.32, -9.54);
+      this.scene.add(frontRail);
+
+      // Left wall with 3 bright sunlit windows (x = -14.2)
+      const leftUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 13, 36), upperWallMat);
+      leftUpper.position.set(-14.2, 6.5, 4);
+      leftUpper.receiveShadow = true;
+      this.scene.add(leftUpper);
+
+      const leftWainscot = new THREE.Mesh(new THREE.BoxGeometry(0.46, 2.3, 36), wainscotMat);
+      leftWainscot.position.set(-14.16, 1.15, 4);
+      this.scene.add(leftWainscot);
+
+      const skyPaneMat = new THREE.MeshBasicMaterial({ color: 0xe6f6ff });
+      const windowFrameMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      [-5.2, -0.4, 4.4].forEach((wz) => {
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.8, 3.2), windowFrameMat);
+        frame.position.set(-13.92, 5.4, wz);
+        const glass = new THREE.Mesh(new THREE.BoxGeometry(0.16, 3.4, 2.8), skyPaneMat);
+        glass.position.set(-13.9, 5.4, wz);
+        const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.18, 3.4, 0.12), windowFrameMat);
+        mullion.position.set(-13.88, 5.4, wz);
+        this.scene.add(frame, glass, mullion);
+      });
+
+      // Right wall with cork bulletin board (x = 15.2)
+      const rightUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 13, 36), upperWallMat);
+      rightUpper.position.set(15.2, 6.5, 4);
+      rightUpper.receiveShadow = true;
+      this.scene.add(rightUpper);
+
+      const rightWainscot = new THREE.Mesh(new THREE.BoxGeometry(0.46, 2.3, 36), wainscotMat);
+      rightWainscot.position.set(15.16, 1.15, 4);
+      this.scene.add(rightWainscot);
+
+      const corkFrame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.1, 4.6), trimMat);
+      corkFrame.position.set(14.92, 5.2, -2.5);
+      const corkBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 2.75, 4.25),
+        new THREE.MeshLambertMaterial({ color: 0xd99b66 })
+      );
+      corkBoard.position.set(14.9, 5.2, -2.5);
+      this.scene.add(corkFrame, corkBoard);
+      const noteColors = [0xfef08a, 0x93c5fd, 0xfda4af, 0x86efac];
+      [-3.7, -2.8, -1.9, -1.2].forEach((nz, i) => {
+        const note = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.72, 0.62),
+          new THREE.MeshLambertMaterial({ color: noteColors[i % noteColors.length] })
+        );
+        note.position.set(14.8, 5.3 + (i % 2 ? 0.3 : -0.25), nz);
+        this.scene.add(note);
+      });
     }
 
-    _buildPerimeterForest() {
-      const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7c4a28 });
-      const pineMats = [
-        new THREE.MeshLambertMaterial({ color: 0x2e8b57 }),
-        new THREE.MeshLambertMaterial({ color: 0x227948 }),
-        new THREE.MeshLambertMaterial({ color: 0x3da35d })
+    _buildClassroomDecor() {
+      // Wall clock centered above the whiteboard
+      const clockGroup = new THREE.Group();
+      clockGroup.position.set(1.0, 8.65, -9.32);
+      const clockRim = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.68, 0.68, 0.14, 24),
+        new THREE.MeshLambertMaterial({ color: 0x334155 })
+      );
+      clockRim.rotation.x = Math.PI / 2;
+      const clockFace = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.58, 0.58, 0.16, 24),
+        new THREE.MeshBasicMaterial({ color: 0xffffff })
+      );
+      clockFace.rotation.x = Math.PI / 2;
+      const hourHand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.28, 0.04),
+        new THREE.MeshBasicMaterial({ color: 0x0f172a })
+      );
+      hourHand.position.set(0.08, 0.08, 0.09);
+      hourHand.rotation.z = -0.7;
+      const secPivot = new THREE.Group();
+      secPivot.position.set(0, 0, 0.1);
+      const secHand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.42, 0.03),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 })
+      );
+      secHand.position.y = 0.16;
+      secPivot.add(secHand);
+      clockGroup.add(clockRim, clockFace, hourHand, secPivot);
+      this.scene.add(clockGroup);
+      this.clockSecondHand = secPivot;
+
+      // Colorful framed classroom posters flanking the whiteboard
+      const posterSpecs = [
+        { x: -10.2, y: 5.2, bg: "#dbeafe", title: "ABC", accent: "#2563eb", sub: "DRAW & GUESS" },
+        { x: 10.6, y: 5.2, bg: "#fef3c7", title: "ART", accent: "#d97706", sub: "BE CREATIVE!" }
       ];
-      const oakMats = [
-        new THREE.MeshLambertMaterial({ color: 0x43aa52 }),
-        new THREE.MeshLambertMaterial({ color: 0x359648 })
-      ];
-      const rockMat = new THREE.MeshLambertMaterial({ color: 0x94a3b8 });
+      posterSpecs.forEach((p) => {
+        const pc = document.createElement("canvas");
+        pc.width = 256;
+        pc.height = 320;
+        const ctx = pc.getContext("2d");
+        ctx.fillStyle = p.bg;
+        ctx.fillRect(0, 0, 256, 320);
+        ctx.strokeStyle = p.accent;
+        ctx.lineWidth = 14;
+        ctx.strokeRect(14, 14, 228, 292);
+        ctx.fillStyle = p.accent;
+        ctx.textAlign = "center";
+        ctx.font = '800 68px "Fredoka", "Nunito", sans-serif';
+        ctx.fillText(p.title, 128, 150);
+        ctx.fillStyle = "#334155";
+        ctx.font = '800 24px "Nunito", sans-serif';
+        ctx.fillText(p.sub, 128, 220);
+        const tex = new THREE.CanvasTexture(pc);
+        tex.encoding = THREE.sRGBEncoding;
 
-      const treePositions = [];
-      const totalTrees = 34;
-      for (let i = 0; i < totalTrees; i += 1) {
-        const angle = (i / totalTrees) * Math.PI * 2;
-        const radius = 18.5 + (i % 4) * 3.8;
-        const x = Math.cos(angle) * radius;
-        const z = Math.sin(angle) * radius - 2.0;
-
-        // Leave the camera view corridor behind guessers unobstructed
-        if (z > 9.0 && Math.abs(x) < 13.5) continue;
-        treePositions.push({ x, z, isPine: i % 3 !== 0, scale: 0.85 + (i % 4) * 0.22, idx: i });
-      }
-
-      treePositions.forEach((cfg) => {
-        const tree = new THREE.Group();
-        const trunk = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.28, 0.44, 2.2, 6),
-          trunkMat
+        const frame = new THREE.Mesh(
+          new THREE.BoxGeometry(2.15, 2.65, 0.12),
+          new THREE.MeshLambertMaterial({ color: 0x7c4a28 })
         );
-        trunk.position.y = 1.1;
-        trunk.castShadow = true;
-        trunk.receiveShadow = true;
-        tree.add(trunk);
+        frame.position.set(p.x, p.y, -9.32);
+        const art = new THREE.Mesh(
+          new THREE.PlaneGeometry(1.9, 2.4),
+          new THREE.MeshBasicMaterial({ map: tex })
+        );
+        art.position.set(p.x, p.y, -9.25);
+        this.scene.add(frame, art);
+      });
 
-        const canopyGroup = new THREE.Group();
-        if (cfg.isPine) {
-          const mat = pineMats[cfg.idx % pineMats.length];
-          const tiers = [
-            { y: 2.6, r: 1.85, h: 2.3 },
-            { y: 4.0, r: 1.42, h: 2.0 },
-            { y: 5.2, r: 0.95, h: 1.7 }
-          ];
-          tiers.forEach((t) => {
-            const cone = new THREE.Mesh(new THREE.ConeGeometry(t.r, t.h, 7), mat);
-            cone.position.y = t.y;
-            cone.castShadow = true;
-            cone.receiveShadow = true;
-            canopyGroup.add(cone);
-          });
-        } else {
-          const mat = oakMats[cfg.idx % oakMats.length];
-          const puffs = [
-            [0, 3.4, 0, 1.65],
-            [-0.9, 2.9, 0.5, 1.15],
-            [0.9, 3.0, -0.4, 1.2],
-            [0.1, 4.3, 0.2, 1.05]
-          ];
-          puffs.forEach(([px, py, pz, r]) => {
-            const blob = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), mat);
-            blob.position.set(px, py, pz);
-            blob.castShadow = true;
-            blob.receiveShadow = true;
-            canopyGroup.add(blob);
-          });
-        }
+      // Back-right classroom bookshelf with colorful books
+      const shelfGroup = new THREE.Group();
+      shelfGroup.position.set(11.4, 0, -8.3);
+      const woodMat = new THREE.MeshLambertMaterial({ color: 0x9c6635 });
+      const shelfBody = new THREE.Mesh(new THREE.BoxGeometry(2.8, 3.0, 0.8), woodMat);
+      shelfBody.position.y = 1.5;
+      shelfBody.castShadow = true;
+      shelfBody.receiveShadow = true;
+      shelfGroup.add(shelfBody);
 
-        tree.add(canopyGroup);
-        tree.position.set(cfg.x, 0, cfg.z);
-        tree.scale.setScalar(cfg.scale);
-        this.scene.add(tree);
-
-        canopyGroup.userData = { phase: cfg.idx * 0.9 };
-        this.treeCanopies.push(canopyGroup);
-
-        if (cfg.idx % 3 === 0) {
-          const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.65, 0), rockMat);
-          rock.position.set(cfg.x * 0.92, 0.28, cfg.z * 0.92);
-          rock.scale.set(1.2, 0.7, 1.0);
-          rock.rotation.y = cfg.idx;
-          rock.castShadow = true;
-          rock.receiveShadow = true;
-          this.scene.add(rock);
+      const bookColors = [0xef4444, 0x3b82f6, 0x22c55e, 0xf59e0b, 0xa855f7];
+      [1.1, 2.1].forEach((sy, rowIdx) => {
+        for (let b = 0; b < 6; b += 1) {
+          const book = new THREE.Mesh(
+            new THREE.BoxGeometry(0.24, 0.56 + (b % 2) * 0.1, 0.52),
+            new THREE.MeshLambertMaterial({ color: bookColors[(b + rowIdx * 2) % bookColors.length] })
+          );
+          book.position.set(-0.9 + b * 0.34, sy + 0.32, 0.25);
+          book.castShadow = true;
+          shelfGroup.add(book);
         }
       });
+
+      // Potted classroom plant next to the bookshelf
+      const pot = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.36, 0.26, 0.55, 10),
+        new THREE.MeshLambertMaterial({ color: 0xc2410c })
+      );
+      pot.position.set(-2.0, 0.28, 0.2);
+      pot.castShadow = true;
+      const leaves = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.5, 0),
+        new THREE.MeshLambertMaterial({ color: 0x22c55e })
+      );
+      leaves.position.set(-2.0, 0.85, 0.2);
+      leaves.castShadow = true;
+      shelfGroup.add(pot, leaves);
+
+      this.scene.add(shelfGroup);
     }
 
     _buildWhiteboard() {
@@ -538,6 +613,7 @@
       };
       const coords = presets[clamped];
       const lookTarget = new THREE.Vector3(1.0, 0, -7.2);
+      const guesserScale = clamped <= 2 ? 1.3 : 1.08;
 
       this.guesserDesks.forEach((desk, i) => {
         if (i < clamped) {
@@ -547,6 +623,7 @@
           const dz = lookTarget.z - gz;
           // Local +Z is forward facing direction of seated character
           desk.rotation.y = Math.atan2(dx, dz);
+          desk.scale.setScalar(guesserScale);
           desk.visible = true;
         } else {
           desk.visible = false;
@@ -1790,10 +1867,12 @@
         }
 
         if (targetDesk) {
-          const anchor = targetDesk.userData.seatAnchor.clone();
+          const deskScale = isDrawer ? 1 : targetDesk.scale.x || 1;
+          const anchor = targetDesk.userData.seatAnchor.clone().multiplyScalar(deskScale);
           anchor.applyAxisAngle(new THREE.Vector3(0, 1, 0), targetDesk.rotation.y);
           av.root.position.copy(targetDesk.position).add(anchor);
           av.root.rotation.y = targetDesk.rotation.y;
+          av.root.scale.setScalar(deskScale);
           av.root.userData.baseY = av.root.position.y;
           av.root.userData.phase = idx * 1.3;
           av.root.visible = true;
@@ -1955,15 +2034,9 @@
       const dt = Math.min(0.05, this.clock.getDelta());
       this.elapsed += dt;
 
-      // Gentle forest breeze on trees & drifting clouds
-      for (const canopy of this.treeCanopies) {
-        canopy.rotation.z = Math.sin(this.elapsed * 1.1 + canopy.userData.phase) * 0.025;
-      }
-      for (const cloud of this.clouds) {
-        cloud.position.x += cloud.userData.speed * dt;
-        if (cloud.position.x > 46) {
-          cloud.position.x = -46;
-        }
+      // Smoothly tick classroom wall clock second hand
+      if (this.clockSecondHand) {
+        this.clockSecondHand.rotation.z = -this.elapsed * 0.45;
       }
 
       // Animate any active Special Decal 3D shirt textures (~22fps)
