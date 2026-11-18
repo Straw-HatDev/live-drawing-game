@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoodleDash.io — Mobile Phone Preview</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top, #1e293b 0%, #0f172a 65%, #020617 100%);
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(15, 23, 42, 0.9);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+      z-index: 10;
+    }
+    .toolbar-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #7dd3fc;
+      margin-right: 6px;
+    }
+    .dim-pill {
+      font-size: 12px;
+      font-weight: 800;
+      padding: 5px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #bae6fd;
+    }
+    .btn {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+      border-radius: 10px;
+      padding: 6px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+    }
+    .btn.active {
+      background: #2563eb;
+      border-color: #60a5fa;
+    }
+    .stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 12px;
+    }
+    .phone-shell {
+      transform-origin: center center;
+      padding: 14px;
+      border-radius: 42px;
+      background: linear-gradient(145deg, #334155, #0f172a);
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+    .phone-notch {
+      width: 110px;
+      height: 16px;
+      border-radius: 999px;
+      background: #020617;
+      margin-bottom: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .phone-screen {
+      border-radius: 28px;
+      overflow: hidden;
+      background: #000000;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    iframe {
+      display: block;
+      border: none;
+      background: #0f172a;
+    }
+  </style>
+</head>
+<body>
+  <header class="toolbar">
+    <span class="toolbar-title">📱 Mobile Preview</span>
+    <span id="dim-label" class="dim-pill">390 × 844</span>
+    <button type="button" class="btn active" data-w="390" data-h="844">iPhone 14 (390×844)</button>
+    <button type="button" class="btn" data-w="375" data-h="667">iPhone SE (375×667)</button>
+    <button type="button" class="btn" data-w="412" data-h="915">Pixel (412×915)</button>
+    <button id="btn-rotate" type="button" class="btn">🔄 Rotate</button>
+    <button id="btn-reload" type="button" class="btn">↻ Reload</button>
+  </header>
+
+  <main id="stage" class="stage">
+    <div id="phone-shell" class="phone-shell">
+      <div class="phone-notch" aria-hidden="true"></div>
+      <div id="phone-screen" class="phone-screen">
+        <iframe id="phone-frame" src="./index.html" width="390" height="844" title="Mobile Game Preview"></iframe>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const stage = document.getElementById("stage");
+      const shell = document.getElementById("phone-shell");
+      const screen = document.getElementById("phone-screen");
+      const frame = document.getElementById("phone-frame");
+      const dimLabel = document.getElementById("dim-label");
+      const btnRotate = document.getElementById("btn-rotate");
+      const btnReload = document.getElementById("btn-reload");
+      const presetBtns = Array.from(document.querySelectorAll(".btn[data-w]"));
+
+      let width = 390;
+      let height = 844;
+
+      function applySize() {
+        frame.width = String(width);
+        frame.height = String(height);
+        frame.style.width = width + "px";
+        frame.style.height = height + "px";
+        screen.style.width = width + "px";
+        screen.style.height = height + "px";
+        dimLabel.textContent = width + " × " + height;
+
+        // Fit inside stage while keeping the iframe's internal CSS viewport exact
+        shell.style.transform = "scale(1)";
+        const availW = Math.max(200, stage.clientWidth - 24);
+        const availH = Math.max(200, stage.clientHeight - 24);
+        const outerW = shell.offsetWidth || width + 32;
+        const outerH = shell.offsetHeight || height + 58;
+        const scale = Math.min(1, availW / outerW, availH / outerH);
+        shell.style.transform = "scale(" + scale.toFixed(4) + ")";
+      }
+
+      presetBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          presetBtns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          width = Number(btn.dataset.w);
+          height = Number(btn.dataset.h);
+          applySize();
+        });
+      });
+
+      btnRotate.addEventListener("click", () => {
+        const prevW = width;
+        width = height;
+        height = prevW;
+        applySize();
+      });
+
+      btnReload.addEventListener("click", () => {
+        frame.src = "./index.html?t=" + Date.now();
+      });
+
+      window.addEventListener("resize", applySize);
+      applySize();
+    })();
+  </script>
+</body>
+</html>
