@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DoodleDash.io — Live Multiplayer Drawing &amp; Guessing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <!-- Full-viewport 3D Forest Clearing Stage -->
+  <canvas id="three-canvas"></canvas>
+
+  <div id="ui-root">
+    <!-- Top-Left Utility Controls -->
+    <div id="hud-controls" class="hud-controls hidden">
+      <button id="btn-sound-toggle" class="icon-pill-btn" title="Toggle Sound Effects">
+        🔊 Sound On
+      </button>
+      <button id="btn-leave-match" class="icon-pill-btn danger" title="Return to Main Menu">
+        ✕ Leave
+      </button>
+    </div>
+
+    <!-- Top-Center HUD (Round, Timer, Word Hint) -->
+    <header id="hud-top-center" class="hud-top-center hidden">
+      <div class="hud-row">
+        <span id="hud-round-badge" class="round-pill">Round 1 / 10</span>
+        <div id="hud-timer" class="timer-pill">60s</div>
+      </div>
+      <div id="hud-word-box" class="word-hint-box">_ _ _ _ _</div>
+      <div id="hud-phase-label" class="phase-subtitle">Waiting to start...</div>
+    </header>
+
+    <!-- Top-Right Live Leaderboard -->
+    <aside id="hud-leaderboard" class="hud-leaderboard hidden">
+      <div class="panel-header">
+        <span>🏆 Leaderboard</span>
+      </div>
+      <ul id="leaderboard-list" class="leaderboard-list"></ul>
+    </aside>
+
+    <!-- Bottom-Left Chat Toggle Button (Keyboard Icon) -->
+    <button
+      id="btn-chat-toggle"
+      type="button"
+      class="chat-toggle-btn hidden"
+      title="Open Chat & Guesses"
+      aria-label="Toggle Chat and Guesses"
+    >
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="5" width="20" height="14" rx="2.5"></rect>
+        <path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M10 13h.01M14 13h.01M18 13h.01M7 16h10"></path>
+      </svg>
+      <span id="chat-unread-dot" class="chat-unread-dot hidden"></span>
+    </button>
+
+    <!-- Bottom-Left Translucent Chat / Guess Box -->
+    <section id="chat-panel" class="chat-panel hidden">
+      <div class="chat-header">
+        <span>💬 Guesses &amp; Chat</span>
+      </div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <form id="chat-form" class="chat-form" autocomplete="off">
+        <input
+          id="chat-input"
+          type="text"
+          maxlength="80"
+          placeholder="Type your guess here..."
+        />
+        <button id="chat-send-btn" type="submit">Send</button>
+      </form>
+    </section>
+
+    <!-- Center Round / Spin Announcement Banner -->
+    <div id="center-banner" class="center-banner hidden">
+      <div id="center-banner-title" class="banner-title"></div>
+      <div id="center-banner-sub" class="banner-sub"></div>
+    </div>
+
+    <!-- Drawer Private Word Choice Modal -->
+    <div id="word-choice-modal" class="modal-backdrop hidden">
+      <div class="card word-choice-card">
+        <div class="choice-top">
+          <h2>Choose a Word to Draw</h2>
+          <span id="word-choice-timer" class="choice-timer">10s</span>
+        </div>
+        <div class="choice-progress-track">
+          <div id="word-choice-bar" class="choice-progress-fill"></div>
+        </div>
+        <p class="choice-hint">Pick quickly! A random word will be chosen when the timer ends.</p>
+        <div id="word-options-grid" class="word-options-grid"></div>
+      </div>
+    </div>
+
+    <!-- Drawer Mini-Whiteboard Popup -->
+    <section id="drawer-pad-modal" class="drawer-pad-modal hidden">
+      <div class="pad-header">
+        <div class="pad-title-wrap">
+          <span class="pad-badge">YOUR TURN TO DRAW</span>
+          <span id="drawer-secret-word" class="secret-word-pill">ROCKET</span>
+        </div>
+        <div class="pad-header-actions">
+          <button id="btn-toggle-pad" type="button" class="mini-btn" title="Collapse/Expand">
+            ▾
+          </button>
+          <button id="btn-clear-board" type="button" class="mini-btn danger">
+            Clear Board
+          </button>
+        </div>
+      </div>
+
+      <div id="pad-body" class="pad-body">
+        <div class="canvas-wrap">
+          <canvas id="mini-whiteboard"></canvas>
+        </div>
+
+        <div class="pad-toolbar">
+          <div id="color-swatches" class="color-swatches">
+            <button type="button" class="swatch active" data-color="#111827" style="background:#111827" title="Black"></button>
+            <button type="button" class="swatch" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+            <button type="button" class="swatch" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+            <button type="button" class="swatch" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+            <button type="button" class="swatch" data-color="#eab308" style="background:#eab308" title="Yellow"></button>
+            <button type="button" class="swatch" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+            <button type="button" class="swatch" data-color="#8b5a2b" style="background:#8b5a2b" title="Brown"></button>
+          </div>
+
+          <div class="tool-controls">
+            <button id="btn-paint-gun" type="button" class="paint-gun-btn" title="Paint Gun Splatter">
+              <svg width="20" height="18" viewBox="0 0 28 22" fill="none" aria-hidden="true">
+                <!-- Paint Hopper Tank -->
+                <path d="M9 2h7l-1.2 5H10.2L9 2z" fill="#ef4444" stroke="#1e293b" stroke-width="1.5" stroke-linejoin="round"/>
+                <!-- Gun Body & Barrel -->
+                <path d="M4 7h15l3 1.5v3L19 13H11l-1.5 6.5H6L7.5 13H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" fill="#334155" stroke="#0f172a" stroke-width="1.5" stroke-linejoin="round"/>
+                <!-- Trigger -->
+                <path d="M10.5 13v2.5c0 .8.6 1.3 1.4 1.3" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round"/>
+                <!-- Spray Splatter Drops -->
+                <circle cx="24.5" cy="7.5" r="1.4" fill="#2563eb"/>
+                <circle cx="26.2" cy="10.2" r="1.7" fill="#ef4444"/>
+                <circle cx="24.3" cy="13.2" r="1.3" fill="#16a34a"/>
+              </svg>
+              <span>Paint Gun</span>
+            </button>
+            <button id="btn-eraser" type="button" class="tool-btn">🧹 Eraser</button>
+            <label class="size-control">
+              <span>Size</span>
+              <input id="brush-size-slider" type="range" min="2" max="26" value="8" />
+              <span id="brush-size-value">8</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bottom-Right Sabotage Paint Blaster Button -->
+    <div id="paint-blaster-wrap" class="paint-blaster-wrap hidden">
+      <button
+        id="btn-paint-blaster"
+        type="button"
+        class="paint-blaster-btn is-cooldown"
+        title="Splat giant black paint across the whiteboard!"
+        aria-label="Paint Blaster"
+        disabled
+      >
+        <svg width="38" height="32" viewBox="0 0 38 32" fill="none" aria-hidden="true">
+          <!-- Mega Paint Hopper -->
+          <rect x="11" y="2" width="11" height="8" rx="2.5" fill="#111827" stroke="#ffffff" stroke-width="1.6"/>
+          <circle cx="16.5" cy="6" r="2" fill="#facc15"/>
+          <!-- Blaster Body & Heavy Barrel -->
+          <path d="M5 10h22l5 2.5v5L27 20H14l-2 9H7l2-9H5a3 3 0 0 1-3-3v-4a3 3 0 0 1 3-3z" fill="#1e293b" stroke="#ffffff" stroke-width="1.8" stroke-linejoin="round"/>
+          <!-- Glow Stripe -->
+          <rect x="8" y="13.5" width="15" height="3" rx="1.5" fill="#facc15"/>
+          <!-- Nozzle Splash -->
+          <circle cx="34.5" cy="11" r="2" fill="#111827" stroke="#ffffff" stroke-width="1"/>
+          <circle cx="36" cy="15.5" r="2.4" fill="#111827" stroke="#ffffff" stroke-width="1"/>
+          <circle cx="34" cy="20" r="1.8" fill="#111827" stroke="#ffffff" stroke-width="1"/>
+        </svg>
+      </button>
+      <div id="paint-blaster-timer" class="paint-blaster-timer">Wait 2:00</div>
+    </div>
+
+    <!-- Main Menu Overlay -->
+    <div id="menu-overlay" class="overlay-screen">
+      <div class="card menu-card">
+        <div class="brand-badge">🎨 Live Drawing Game</div>
+        <h1 class="game-title">DoodleDash.io</h1>
+        <p class="game-subtitle">
+          Draw live on the giant forest whiteboard, spin for the first artist, and race to guess!
+        </p>
+
+        <div id="server-status-pill" class="server-pill offline">
+          ● Checking online server...
+        </div>
+
+        <div class="form-group">
+          <label for="nickname-input">Your Nickname</label>
+          <div class="nickname-row">
+            <input
+              id="nickname-input"
+              type="text"
+              maxlength="16"
+              placeholder="Enter a nickname (e.g. Alex)"
+            />
+            <button
+              id="btn-customize-avatar"
+              type="button"
+              class="hanger-btn"
+              title="Customize Avatar"
+              aria-label="Customize Avatar"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 6a2 2 0 1 0-2-2c0 .74.4 1.39 1 1.73V8l-8 5.5A1.5 1.5 0 0 0 3.85 16h16.3a1.5 1.5 0 0 0 .85-2.5L13 8V5.73" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div id="menu-error" class="error-box hidden"></div>
+
+        <div class="menu-actions">
+          <button id="btn-single-player" type="button" class="btn btn-accent">
+            🤖 Single Player vs. Bots
+          </button>
+
+          <div class="divider"><span>OR PLAY ONLINE (3–5 PLAYERS)</span></div>
+
+          <div class="create-room-box">
+            <div class="create-bots-row">
+              <span class="create-bots-label">🤖 Add Bots to Room</span>
+              <div id="create-bot-selector" class="bot-pill-group">
+                <button type="button" class="bot-pill active" data-bots="0">0</button>
+                <button type="button" class="bot-pill" data-bots="1">1</button>
+                <button type="button" class="bot-pill" data-bots="2">2</button>
+              </div>
+            </div>
+            <button id="btn-create-room" type="button" class="btn btn-primary">
+              ✨ Create Online Room
+            </button>
+          </div>
+
+          <div class="join-row">
+            <input
+              id="room-code-input"
+              type="text"
+              maxlength="4"
+              placeholder="CODE"
+              autocomplete="off"
+            />
+            <button id="btn-join-room" type="button" class="btn btn-secondary">
+              Join Room
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Avatar Customization Screen -->
+    <div id="customize-overlay" class="overlay-screen hidden">
+      <div class="card customize-card">
+        <div class="customize-header">
+          <div>
+            <div class="brand-badge">👕 Avatar Studio</div>
+            <h2 class="customize-title">Customize Look</h2>
+          </div>
+          <button id="btn-customize-done" type="button" class="btn btn-primary customize-done-btn">
+            Done
+          </button>
+        </div>
+
+        <div class="avatar-preview-box">
+          <svg id="avatar-preview-svg" viewBox="0 -14 160 169" width="150" height="158" aria-label="Avatar Preview">
+            <!-- Torso / T-Shirt -->
+            <rect id="prev-arm-l" x="28" y="88" width="18" height="44" rx="9" fill="#3b82f6" />
+            <rect id="prev-arm-r" x="114" y="88" width="18" height="44" rx="9" fill="#3b82f6" />
+            <rect id="prev-shirt" x="44" y="82" width="72" height="58" rx="16" fill="#3b82f6" />
+            <path d="M68 82 Q80 94 92 82" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="3" />
+            <!-- Head -->
+            <rect x="49" y="30" width="62" height="56" rx="16" fill="#fcd5b5" />
+            <!-- Eyes & Smile -->
+            <circle cx="67" cy="57" r="4.5" fill="#0f172a" />
+            <circle cx="93" cy="57" r="4.5" fill="#0f172a" />
+            <path d="M72 70 Q80 77 88 70" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round" />
+            <!-- Hair Layer -->
+            <g id="prev-hair-layer"></g>
+          </svg>
+        </div>
+
+        <div class="customize-section">
+          <div class="customize-label-row">
+            <span>T-Shirt Color</span>
+            <input id="custom-shirt-picker" type="color" value="#3b82f6" title="Custom T-Shirt Color" />
+          </div>
+          <div id="shirt-color-swatches" class="customize-swatches">
+            <button type="button" class="c-swatch" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+            <button type="button" class="c-swatch" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+            <button type="button" class="c-swatch" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+            <button type="button" class="c-swatch" data-color="#eab308" style="background:#eab308" title="Yellow"></button>
+            <button type="button" class="c-swatch" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+            <button type="button" class="c-swatch" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+            <button type="button" class="c-swatch" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+            <button type="button" class="c-swatch" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+            <button type="button" class="c-swatch" data-color="#334155" style="background:#334155" title="Charcoal"></button>
+          </div>
+        </div>
+
+        <div class="customize-section">
+          <div class="customize-label-row">
+            <span>Hair Color</span>
+            <input id="custom-hair-picker" type="color" value="#4a2c18" title="Custom Hair Color" />
+          </div>
+          <div id="hair-color-swatches" class="customize-swatches">
+            <button type="button" class="c-swatch" data-color="#4a2c18" style="background:#4a2c18" title="Dark Brown"></button>
+            <button type="button" class="c-swatch" data-color="#111827" style="background:#111827" title="Black"></button>
+            <button type="button" class="c-swatch" data-color="#eab308" style="background:#eab308" title="Blonde"></button>
+            <button type="button" class="c-swatch" data-color="#d97706" style="background:#d97706" title="Ginger"></button>
+            <button type="button" class="c-swatch" data-color="#7c2d12" style="background:#7c2d12" title="Chestnut"></button>
+            <button type="button" class="c-swatch" data-color="#cbd5e1" style="background:#cbd5e1" title="Silver"></button>
+            <button type="button" class="c-swatch" data-color="#2563eb" style="background:#2563eb" title="Electric Blue"></button>
+            <button type="button" class="c-swatch" data-color="#ec4899" style="background:#ec4899" title="Bubblegum Pink"></button>
+            <button type="button" class="c-swatch" data-color="#9333ea" style="background:#9333ea" title="Violet"></button>
+          </div>
+        </div>
+
+        <div class="customize-section">
+          <div class="customize-label-row">
+            <span>Hair Style</span>
+          </div>
+          <div id="hairstyle-grid" class="hairstyle-grid">
+            <button type="button" class="hairstyle-btn" data-style="classic"><span class="hs-emoji">💈</span>Classic</button>
+            <button type="button" class="hairstyle-btn" data-style="spiky"><span class="hs-emoji">⚡</span>Spiky</button>
+            <button type="button" class="hairstyle-btn" data-style="bob"><span class="hs-emoji">🎀</span>Bob</button>
+            <button type="button" class="hairstyle-btn" data-style="bun"><span class="hs-emoji">🍡</span>Top Bun</button>
+            <button type="button" class="hairstyle-btn" data-style="mohawk"><span class="hs-emoji">🔥</span>Mohawk</button>
+            <button type="button" class="hairstyle-btn" data-style="curly"><span class="hs-emoji">🌀</span>Curly</button>
+            <button type="button" class="hairstyle-btn" data-style="ponytail"><span class="hs-emoji">🎐</span>Ponytail</button>
+            <button type="button" class="hairstyle-btn" data-style="anime"><span class="hs-emoji">✨</span>Anime</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lobby Waiting Screen -->
+    <div id="lobby-overlay" class="overlay-screen hidden">
+      <div class="card lobby-card">
+        <div class="lobby-top">
+          <div>
+            <span class="lobby-label">ROOM CODE</span>
+            <div class="room-code-wrap">
+              <span id="lobby-room-code" class="room-code-text">----</span>
+              <button id="btn-copy-code" type="button" class="copy-btn">📋 Copy</button>
+            </div>
+          </div>
+          <button id="btn-lobby-leave" type="button" class="mini-btn danger">
+            Leave Room
+          </button>
+        </div>
+
+        <div id="lobby-error" class="error-box hidden"></div>
+
+        <div class="lobby-players-header">
+          <span>Players in Clearing</span>
+          <span id="lobby-count-badge" class="count-pill">1 / 5</span>
+        </div>
+
+        <div id="lobby-bot-controls" class="lobby-bot-controls hidden">
+          <span class="create-bots-label">🤖 Room Bots</span>
+          <div id="lobby-bot-selector" class="bot-pill-group">
+            <button type="button" class="bot-pill" data-bots="0">0</button>
+            <button type="button" class="bot-pill" data-bots="1">1</button>
+            <button type="button" class="bot-pill" data-bots="2">2</button>
+          </div>
+        </div>
+
+        <ul id="lobby-player-list" class="lobby-player-list"></ul>
+
+        <div class="lobby-footer">
+          <p id="lobby-status-msg" class="lobby-status-msg">
+            Waiting for at least 3 players to join...
+          </p>
+          <button id="btn-start-game" type="button" class="btn btn-primary" disabled>
+            🚀 Start Game
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Podium Overlay -->
+    <div id="gameover-overlay" class="overlay-screen hidden">
+      <div class="card gameover-card">
+        <div class="brand-badge">🏁 10 Rounds Complete!</div>
+        <h2 class="podium-title">Final Podium</h2>
+
+        <div id="podium-stage" class="podium-stage"></div>
+        <ul id="gameover-rest-list" class="gameover-rest-list"></ul>
+
+        <div id="gameover-actions" class="gameover-actions">
+          <button id="btn-play-again" type="button" class="btn btn-primary">
+            🔄 Play Again
+          </button>
+          <button id="btn-gameover-menu" type="button" class="btn btn-secondary">
+            Main Menu
+          </button>
+        </div>
+        <p id="gameover-wait-note" class="gameover-wait-note hidden">
+          Waiting for room host to start another match...
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Libraries via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <!-- Game Modules -->
+  <script src="./words.js"></script>
+  <script src="./drawpad.js"></script>
+  <script src="./scene3d.js"></script>
+  <script src="./client.js"></script>
+</body>
+</html>
