@@ -13,17 +13,65 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <!-- 5-Second ChiefLogic Credits & Loading Splash -->
+  <div id="splash-screen" class="splash-screen" aria-label="ChiefLogic Studio">
+    <div class="splash-content">
+      <div class="cl-burst-stage" aria-hidden="true">
+        <div class="cl-grow-circle"></div>
+        <div class="cl-flash-burst"></div>
+        <div class="cl-shockwave cl-shockwave-1"></div>
+        <div class="cl-shockwave cl-shockwave-2"></div>
+        <span class="cl-spark" style="--dx:110px;--dy:0px"></span>
+        <span class="cl-spark" style="--dx:92px;--dy:38px"></span>
+        <span class="cl-spark" style="--dx:78px;--dy:78px"></span>
+        <span class="cl-spark" style="--dx:38px;--dy:92px"></span>
+        <span class="cl-spark" style="--dx:0px;--dy:110px"></span>
+        <span class="cl-spark" style="--dx:-38px;--dy:92px"></span>
+        <span class="cl-spark" style="--dx:-78px;--dy:78px"></span>
+        <span class="cl-spark" style="--dx:-92px;--dy:38px"></span>
+        <span class="cl-spark" style="--dx:-110px;--dy:0px"></span>
+        <span class="cl-spark" style="--dx:-92px;--dy:-38px"></span>
+        <span class="cl-spark" style="--dx:-78px;--dy:-78px"></span>
+        <span class="cl-spark" style="--dx:-38px;--dy:-92px"></span>
+        <span class="cl-spark" style="--dx:0px;--dy:-110px"></span>
+        <span class="cl-spark" style="--dx:38px;--dy:-92px"></span>
+        <span class="cl-spark" style="--dx:78px;--dy:-78px"></span>
+        <span class="cl-spark" style="--dx:92px;--dy:-38px"></span>
+      </div>
+
+      <div class="chief-badge">PRESENTED BY</div>
+      <h1 class="chief-title">ChiefLogic</h1>
+      <div class="chief-roles">GAME DEVELOPER • CODE DESIGNER • AI PROBLEM SOLVER</div>
+      <p class="chief-credits">Designed, Developed &amp; Produced by ChiefLogic</p>
+      <p class="chief-copyright">© 2026 ChiefLogic. All Rights Reserved.</p>
+
+      <div class="splash-progress-wrap">
+        <div class="splash-progress-track">
+          <div class="splash-progress-fill"></div>
+        </div>
+        <span class="splash-loading-label">LOADING DOODLEDASH.IO...</span>
+      </div>
+    </div>
+  </div>
+
   <!-- Full-viewport 3D Forest Clearing Stage -->
   <canvas id="three-canvas"></canvas>
 
   <div id="ui-root">
     <!-- Top-Left Utility Controls -->
     <div id="hud-controls" class="hud-controls hidden">
-      <button id="btn-sound-toggle" class="icon-pill-btn" title="Toggle Sound Effects">
-        🔊 Sound On
-      </button>
-      <button id="btn-leave-match" class="icon-pill-btn danger" title="Return to Main Menu">
-        ✕ Leave
+      <button
+        id="btn-leave-match"
+        type="button"
+        class="leave-square-btn"
+        title="Leave Match"
+        aria-label="Leave Match"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </svg>
       </button>
     </div>
 
@@ -31,7 +79,7 @@
     <header id="hud-top-center" class="hud-top-center hidden">
       <div class="hud-row">
         <span id="hud-round-badge" class="round-pill">Round 1 / 10</span>
-        <div id="hud-timer" class="timer-pill">45s</div>
+        <div id="hud-timer" class="timer-pill">30s</div>
       </div>
       <div id="hud-word-box" class="word-hint-box">_ _ _ _ _</div>
       <div id="hud-phase-label" class="phase-subtitle">Waiting to start...</div>
@@ -190,9 +238,6 @@
       <div class="card menu-card">
         <div class="brand-badge">🎨 Live Drawing Game</div>
         <h1 class="game-title">DoodleDash.io</h1>
-        <p class="game-subtitle">
-          Draw live on the giant forest whiteboard, spin for the first artist, and race to guess!
-        </p>
 
         <div id="server-status-pill" class="server-pill offline">
           ● Checking online server...
@@ -265,11 +310,16 @@
 
         <div class="avatar-preview-box">
           <svg id="avatar-preview-svg" viewBox="0 -14 160 169" width="150" height="158" aria-label="Avatar Preview">
+            <!-- Special skin back layer (capes, quivers, robes) -->
+            <g id="prev-skin-back"></g>
             <!-- Torso / T-Shirt -->
             <rect id="prev-arm-l" x="28" y="88" width="18" height="44" rx="9" fill="#3b82f6" />
             <rect id="prev-arm-r" x="114" y="88" width="18" height="44" rx="9" fill="#3b82f6" />
             <rect id="prev-shirt" x="44" y="82" width="72" height="58" rx="16" fill="#3b82f6" />
             <path d="M68 82 Q80 94 92 82" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="3" />
+            <g id="prev-shirt-decal"></g>
+            <!-- Special skin over layer (armor, collars, flames) -->
+            <g id="prev-skin-over"></g>
             <!-- Head -->
             <rect x="49" y="30" width="62" height="56" rx="16" fill="#fcd5b5" />
             <!-- Eyes & Smile -->
@@ -278,24 +328,24 @@
             <path d="M72 70 Q80 77 88 70" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round" />
             <!-- Hair Layer -->
             <g id="prev-hair-layer"></g>
+            <!-- Special skin top layer (horns, orbiting stars) -->
+            <g id="prev-skin-top"></g>
           </svg>
         </div>
 
         <div class="customize-section">
           <div class="customize-label-row">
-            <span>T-Shirt Color</span>
-            <input id="custom-shirt-picker" type="color" value="#3b82f6" title="Custom T-Shirt Color" />
+            <span>Hair Style</span>
           </div>
-          <div id="shirt-color-swatches" class="customize-swatches">
-            <button type="button" class="c-swatch" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
-            <button type="button" class="c-swatch" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
-            <button type="button" class="c-swatch" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
-            <button type="button" class="c-swatch" data-color="#eab308" style="background:#eab308" title="Yellow"></button>
-            <button type="button" class="c-swatch" data-color="#f97316" style="background:#f97316" title="Orange"></button>
-            <button type="button" class="c-swatch" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
-            <button type="button" class="c-swatch" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
-            <button type="button" class="c-swatch" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
-            <button type="button" class="c-swatch" data-color="#334155" style="background:#334155" title="Charcoal"></button>
+          <div id="hairstyle-grid" class="hairstyle-grid">
+            <button type="button" class="hairstyle-btn" data-style="classic"><span class="hs-emoji">💈</span>Classic</button>
+            <button type="button" class="hairstyle-btn" data-style="spiky"><span class="hs-emoji">⚡</span>Spiky</button>
+            <button type="button" class="hairstyle-btn" data-style="bob"><span class="hs-emoji">🎀</span>Bob</button>
+            <button type="button" class="hairstyle-btn" data-style="bun"><span class="hs-emoji">🍡</span>Top Bun</button>
+            <button type="button" class="hairstyle-btn" data-style="mohawk"><span class="hs-emoji">🔥</span>Mohawk</button>
+            <button type="button" class="hairstyle-btn" data-style="curly"><span class="hs-emoji">🌀</span>Curly</button>
+            <button type="button" class="hairstyle-btn" data-style="ponytail"><span class="hs-emoji">🎐</span>Ponytail</button>
+            <button type="button" class="hairstyle-btn" data-style="anime"><span class="hs-emoji">✨</span>Anime</button>
           </div>
         </div>
 
@@ -317,19 +367,36 @@
           </div>
         </div>
 
+        <div id="shirt-color-section" class="customize-section">
+          <div class="customize-label-row">
+            <span>T-Shirt Color</span>
+            <span id="shirt-color-lock" class="lock-pill hidden">🔒 Disabled for Special Decal</span>
+            <input id="custom-shirt-picker" type="color" value="#3b82f6" title="Custom T-Shirt Color" />
+          </div>
+          <div id="shirt-color-swatches" class="customize-swatches">
+            <button type="button" class="c-swatch" data-color="#3b82f6" style="background:#3b82f6" title="Blue"></button>
+            <button type="button" class="c-swatch" data-color="#ef4444" style="background:#ef4444" title="Red"></button>
+            <button type="button" class="c-swatch" data-color="#22c55e" style="background:#22c55e" title="Green"></button>
+            <button type="button" class="c-swatch" data-color="#eab308" style="background:#eab308" title="Yellow"></button>
+            <button type="button" class="c-swatch" data-color="#f97316" style="background:#f97316" title="Orange"></button>
+            <button type="button" class="c-swatch" data-color="#a855f7" style="background:#a855f7" title="Purple"></button>
+            <button type="button" class="c-swatch" data-color="#ec4899" style="background:#ec4899" title="Pink"></button>
+            <button type="button" class="c-swatch" data-color="#14b8a6" style="background:#14b8a6" title="Teal"></button>
+            <button type="button" class="c-swatch" data-color="#334155" style="background:#334155" title="Charcoal"></button>
+          </div>
+        </div>
+
         <div class="customize-section">
           <div class="customize-label-row">
-            <span>Hair Style</span>
+            <span>Special Decal Skins</span>
           </div>
-          <div id="hairstyle-grid" class="hairstyle-grid">
-            <button type="button" class="hairstyle-btn" data-style="classic"><span class="hs-emoji">💈</span>Classic</button>
-            <button type="button" class="hairstyle-btn" data-style="spiky"><span class="hs-emoji">⚡</span>Spiky</button>
-            <button type="button" class="hairstyle-btn" data-style="bob"><span class="hs-emoji">🎀</span>Bob</button>
-            <button type="button" class="hairstyle-btn" data-style="bun"><span class="hs-emoji">🍡</span>Top Bun</button>
-            <button type="button" class="hairstyle-btn" data-style="mohawk"><span class="hs-emoji">🔥</span>Mohawk</button>
-            <button type="button" class="hairstyle-btn" data-style="curly"><span class="hs-emoji">🌀</span>Curly</button>
-            <button type="button" class="hairstyle-btn" data-style="ponytail"><span class="hs-emoji">🎐</span>Ponytail</button>
-            <button type="button" class="hairstyle-btn" data-style="anime"><span class="hs-emoji">✨</span>Anime</button>
+          <div id="shirt-decal-grid" class="decal-grid">
+            <button type="button" class="decal-btn active" data-decal="none">Plain Tee<small>Classic Fit</small></button>
+            <button type="button" class="decal-btn" data-decal="chief">👑 Chief<small>Armor + Cape</small></button>
+            <button type="button" class="decal-btn" data-decal="cbert">😈 Cbert<small>Demon Hoodie</small></button>
+            <button type="button" class="decal-btn" data-decal="hunter">🏹 Hunter<small>Ranger Gear</small></button>
+            <button type="button" class="decal-btn" data-decal="fours">🔮 Fours<small>Cosmic Robe</small></button>
+            <button type="button" class="decal-btn" data-decal="tubz">🔥 Tubz<small>Inferno Puffer</small></button>
           </div>
         </div>
       </div>

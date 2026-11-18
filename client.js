@@ -9,20 +9,20 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   const { WORD_POOL, getBotDrawingSegments } = window.GAME_WORDS;
 
   const MAX_ROUNDS = 10;
-  const DRAW_SECONDS = 45;
-  const BLASTER_WINDOW_MS = 30 * 1000;
+  const DRAW_SECONDS = 30;
+  const BLASTER_WINDOW_MS = 20 * 1000;
   const WORD_CHOICE_SECONDS = 10;
   const INTRO_SPIN_DURATION_MS = 5000;
   const INTRO_HOLD_MS = 1800;
   const ROUND_END_PAUSE_MS = 3600;
 
   // DOM References
+  const splashScreen = document.getElementById("splash-screen");
   const uiRoot = document.getElementById("ui-root");
   const threeCanvas = document.getElementById("three-canvas");
   const miniCanvas = document.getElementById("mini-whiteboard");
 
   const hudControls = document.getElementById("hud-controls");
-  const btnSoundToggle = document.getElementById("btn-sound-toggle");
   const btnLeaveMatch = document.getElementById("btn-leave-match");
 
   const hudTopCenter = document.getElementById("hud-top-center");
@@ -79,9 +79,16 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   const customizeOverlay = document.getElementById("customize-overlay");
   const btnCustomizeDone = document.getElementById("btn-customize-done");
   const prevShirt = document.getElementById("prev-shirt");
+  const prevShirtDecal = document.getElementById("prev-shirt-decal");
+  const prevSkinBack = document.getElementById("prev-skin-back");
+  const prevSkinOver = document.getElementById("prev-skin-over");
+  const prevSkinTop = document.getElementById("prev-skin-top");
   const prevArmL = document.getElementById("prev-arm-l");
   const prevArmR = document.getElementById("prev-arm-r");
   const prevHairLayer = document.getElementById("prev-hair-layer");
+  const shirtDecalGrid = document.getElementById("shirt-decal-grid");
+  const shirtColorSection = document.getElementById("shirt-color-section");
+  const shirtColorLock = document.getElementById("shirt-color-lock");
   const shirtColorSwatches = document.getElementById("shirt-color-swatches");
   const customShirtPicker = document.getElementById("custom-shirt-picker");
   const hairColorSwatches = document.getElementById("hair-color-swatches");
@@ -199,9 +206,64 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     onWheelTick: () => soundFX.wheelTick()
   });
 
+  // Fixed themes for Special Decal T-shirt skins (custom T-shirt color disabled for these)
+  const SPECIAL_DECAL_SKINS = {
+    chief: {
+      id: "chief",
+      label: "Chief",
+      shirt: "#081226",
+      shirt2: "#0f294a",
+      sleeve: "#0369a1",
+      accent: "#38bdf8",
+      accent2: "#a78bfa",
+      text: "#ffffff"
+    },
+    cbert: {
+      id: "cbert",
+      label: "Cbert",
+      shirt: "#450a0a",
+      shirt2: "#991b1b",
+      sleeve: "#b91c1c",
+      accent: "#fb7185",
+      accent2: "#fde047",
+      text: "#ffffff"
+    },
+    hunter: {
+      id: "hunter",
+      label: "Hunter",
+      shirt: "#022c22",
+      shirt2: "#065f46",
+      sleeve: "#047857",
+      accent: "#34d399",
+      accent2: "#bef264",
+      text: "#ecfdf5"
+    },
+    fours: {
+      id: "fours",
+      label: "Fours",
+      shirt: "#2e1065",
+      shirt2: "#581c87",
+      sleeve: "#7e22ce",
+      accent: "#fde047",
+      accent2: "#f472b6",
+      text: "#fef9c3"
+    },
+    tubz: {
+      id: "tubz",
+      label: "Tubz",
+      shirt: "#1c1917",
+      shirt2: "#431407",
+      sleeve: "#ea580c",
+      accent: "#fb923c",
+      accent2: "#facc15",
+      text: "#fff7ed"
+    }
+  };
+
   // Avatar Customization State
   const avatarConfig = {
     shirtColor: "#3b82f6",
+    shirtDecal: "none",
     hairColor: "#4a2c18",
     hairStyle: "classic"
   };
@@ -214,6 +276,9 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     if (savedAvatar) {
       const parsed = JSON.parse(savedAvatar);
       if (parsed.shirtColor) avatarConfig.shirtColor = parsed.shirtColor;
+      if (parsed.shirtDecal && (parsed.shirtDecal === "none" || SPECIAL_DECAL_SKINS[parsed.shirtDecal])) {
+        avatarConfig.shirtDecal = parsed.shirtDecal;
+      }
       if (parsed.hairColor) avatarConfig.hairColor = parsed.hairColor;
       if (parsed.hairStyle) avatarConfig.hairStyle = parsed.hairStyle;
     }
@@ -229,41 +294,71 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     }
   }
 
-  function renderAvatarPreview() {
-    prevShirt.setAttribute("fill", avatarConfig.shirtColor);
-    prevArmL.setAttribute("fill", avatarConfig.shirtColor);
-    prevArmR.setAttribute("fill", avatarConfig.shirtColor);
-    customShirtPicker.value = avatarConfig.shirtColor;
-    customHairPicker.value = avatarConfig.hairColor;
+  function buildShirtDecalSvg(decalSkin, idSuffix = "main") {
+    if (!decalSkin) return "";
+    const uid = `${decalSkin.id}-${idSuffix}`;
+    let motif = "";
+    if (decalSkin.id === "chief") {
+      motif =
+        `<circle cx="80" cy="112" r="24" fill="none" stroke="${decalSkin.accent}" stroke-width="1.4" stroke-dasharray="6 4" class="decal-spin" style="transform-origin:80px 112px"/>` +
+        `<path d="M44 96 L64 96 L70 102 M116 96 L96 96 L90 102" fill="none" stroke="${decalSkin.accent2}" stroke-width="1.5" opacity="0.8"/>`;
+    } else if (decalSkin.id === "cbert") {
+      motif =
+        `<polyline points="46,132 80,98 114,132" fill="none" stroke="${decalSkin.accent2}" stroke-width="2.2" opacity="0.7" class="decal-pulse"/>` +
+        `<polyline points="52,138 80,108 108,138" fill="none" stroke="${decalSkin.accent}" stroke-width="1.8" opacity="0.8"/>`;
+    } else if (decalSkin.id === "hunter") {
+      motif =
+        `<polygon points="80,88 102,111 80,134 58,111" fill="none" stroke="${decalSkin.accent}" stroke-width="1.8" opacity="0.75" class="decal-pulse"/>` +
+        `<line x1="44" y1="111" x2="58" y2="111" stroke="${decalSkin.accent2}" stroke-width="1.8"/>` +
+        `<line x1="102" y1="111" x2="116" y2="111" stroke="${decalSkin.accent2}" stroke-width="1.8"/>`;
+    } else if (decalSkin.id === "fours") {
+      motif =
+        `<path d="M80 88 L84 97 L93 101 L84 105 L80 114 L76 105 L67 101 L76 97 Z" fill="${decalSkin.accent}" opacity="0.35" class="decal-pulse"/>` +
+        `<circle cx="54" cy="96" r="2.2" fill="${decalSkin.accent2}" class="decal-twinkle"/>` +
+        `<circle cx="106" cy="96" r="2.2" fill="${decalSkin.accent}" class="decal-twinkle" style="animation-delay:0.5s"/>` +
+        `<circle cx="56" cy="130" r="2" fill="${decalSkin.accent}" class="decal-twinkle" style="animation-delay:0.9s"/>` +
+        `<circle cx="104" cy="130" r="2" fill="${decalSkin.accent2}" class="decal-twinkle" style="animation-delay:0.3s"/>`;
+    } else {
+      motif =
+        `<path d="M44 128 Q62 118 80 128 T116 128" fill="none" stroke="${decalSkin.accent}" stroke-width="2.2" class="decal-pulse"/>` +
+        `<path d="M44 134 Q62 124 80 134 T116 134" fill="none" stroke="${decalSkin.accent2}" stroke-width="1.8" opacity="0.8"/>`;
+    }
 
-    shirtColorSwatches.querySelectorAll(".c-swatch").forEach((el) => {
-      el.classList.toggle(
-        "active",
-        el.dataset.color.toLowerCase() === avatarConfig.shirtColor.toLowerCase()
-      );
-    });
-    hairColorSwatches.querySelectorAll(".c-swatch").forEach((el) => {
-      el.classList.toggle(
-        "active",
-        el.dataset.color.toLowerCase() === avatarConfig.hairColor.toLowerCase()
-      );
-    });
-    hairstyleGrid.querySelectorAll(".hairstyle-btn").forEach((el) => {
-      el.classList.toggle("active", el.dataset.style === avatarConfig.hairStyle);
-    });
+    return (
+      `<defs>` +
+      `<clipPath id="clip-${uid}"><rect x="44" y="82" width="72" height="58" rx="16"/></clipPath>` +
+      `<linearGradient id="bg-${uid}" x1="0" y1="0" x2="1" y2="1">` +
+      `<stop offset="0" stop-color="${decalSkin.shirt}"/><stop offset="1" stop-color="${decalSkin.shirt2}"/>` +
+      `</linearGradient>` +
+      `<linearGradient id="shine-${uid}" x1="0" y1="0" x2="1" y2="0">` +
+      `<stop offset="0" stop-color="#ffffff" stop-opacity="0"/>` +
+      `<stop offset="0.5" stop-color="#ffffff" stop-opacity="0.32"/>` +
+      `<stop offset="1" stop-color="#ffffff" stop-opacity="0"/>` +
+      `</linearGradient>` +
+      `</defs>` +
+      `<g clip-path="url(#clip-${uid})">` +
+      `<rect x="44" y="82" width="72" height="58" rx="16" fill="url(#bg-${uid})"/>` +
+      `<path d="M66 82 L80 93 L94 82" fill="none" stroke="${decalSkin.accent}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>` +
+      motif +
+      `<rect x="52" y="101" width="56" height="20" rx="10" fill="rgba(2,6,23,0.68)" stroke="${decalSkin.accent}" stroke-width="1.5"/>` +
+      `<text x="80" y="115" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="13.5" font-weight="800" fill="${decalSkin.text}" letter-spacing="0.6">${decalSkin.label}</text>` +
+      `<g class="decal-shimmer"><rect x="-30" y="75" width="26" height="75" transform="skewX(-22)" fill="url(#shine-${uid})"/></g>` +
+      `</g>`
+    );
+  }
 
-    const hc = avatarConfig.hairColor;
+  function buildHairSvgMarkup(style, hairColor, gradId = "hairGrad") {
+    const hc = hairColor || "#4a2c18";
     const hi = shadeHex(hc, 0.32);
     const lo = shadeHex(hc, -0.28);
-    const style = avatarConfig.hairStyle;
-    const G = "url(#hairGrad)";
+    const G = `url(#${gradId})`;
     const strand = (d, w = 2.5, extra = "") =>
       `<path d="${d}" fill="none" stroke="${hi}" stroke-width="${w}" stroke-linecap="round" class="hair-anim shine" ${extra}/>`;
     const animG = (cls, ox, oy, inner, delay = 0) =>
       `<g class="hair-anim ${cls}" style="transform-origin:${ox}px ${oy}px;animation-delay:${delay}s">${inner}</g>`;
 
     let markup =
-      `<defs><linearGradient id="hairGrad" x1="0" y1="0" x2="0.3" y2="1">` +
+      `<defs><linearGradient id="${gradId}" x1="0" y1="0" x2="0.3" y2="1">` +
       `<stop offset="0" stop-color="${hi}"/><stop offset="0.55" stop-color="${hc}"/><stop offset="1" stop-color="${lo}"/>` +
       `</linearGradient></defs>`;
 
@@ -390,7 +485,154 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
           strand("M66 28 Q78 18 100 20", 2)
       );
     }
+    return markup;
+  }
 
+  function buildSpecialSkinShapeLayers(decalSkin) {
+    if (!decalSkin) return { back: "", over: "", top: "" };
+    const id = decalSkin.id;
+    if (id === "chief") {
+      return {
+        back:
+          `<g class="hair-anim sway-soft" style="transform-origin:80px 84px">` +
+          `<path d="M40 86 L20 144 Q80 152 140 144 L120 86 Z" fill="${decalSkin.sleeve}" stroke="${decalSkin.accent}" stroke-width="2"/>` +
+          `</g>`,
+        over:
+          `<polygon points="24,84 48,78 52,96 26,98" fill="${decalSkin.accent}" stroke="#0f172a" stroke-width="1.5"/>` +
+          `<polygon points="136,84 112,78 108,96 134,98" fill="${decalSkin.accent}" stroke="#0f172a" stroke-width="1.5"/>`,
+        top:
+          `<ellipse cx="80" cy="4" rx="22" ry="5" fill="none" stroke="${decalSkin.accent}" stroke-width="2.6" class="decal-pulse"/>`
+      };
+    }
+    if (id === "cbert") {
+      return {
+        back:
+          `<path d="M36 90 Q34 20 80 16 Q126 20 124 90 Z" fill="${decalSkin.shirt}" stroke="${decalSkin.accent}" stroke-width="2.2"/>`,
+        over:
+          `<path d="M58 124 H102 L106 138 H54 Z" fill="rgba(0,0,0,0.35)" stroke="${decalSkin.accent2}" stroke-width="1.4"/>` +
+          `<line x1="70" y1="86" x2="68" y2="102" stroke="${decalSkin.accent2}" stroke-width="2" stroke-linecap="round"/>` +
+          `<line x1="90" y1="86" x2="92" y2="102" stroke="${decalSkin.accent2}" stroke-width="2" stroke-linecap="round"/>`,
+        top:
+          `<polygon points="50,30 34,2 64,22" fill="${decalSkin.accent2}" stroke="#450a0a" stroke-width="1.5" class="decal-pulse"/>` +
+          `<polygon points="110,30 126,2 96,22" fill="${decalSkin.accent2}" stroke="#450a0a" stroke-width="1.5" class="decal-pulse"/>`
+      };
+    }
+    if (id === "hunter") {
+      return {
+        back:
+          `<g transform="rotate(20 112 78)">` +
+          `<rect x="104" y="54" width="14" height="44" rx="4" fill="#78350f" stroke="${decalSkin.accent}" stroke-width="1.5"/>` +
+          `<polygon points="107,54 103,44 111,48" fill="${decalSkin.accent2}"/>` +
+          `<polygon points="113,54 112,42 119,49" fill="#ef4444"/>` +
+          `</g>`,
+        over:
+          `<path d="M46 86 L112 136 L104 140 L42 94 Z" fill="#78350f" stroke="${decalSkin.accent}" stroke-width="1.5"/>` +
+          `<circle cx="77" cy="112" r="5" fill="${decalSkin.accent2}"/>`,
+        top: ""
+      };
+    }
+    if (id === "fours") {
+      return {
+        back:
+          `<path d="M42 84 L20 144 Q80 152 140 144 L118 84 Z" fill="${decalSkin.shirt2}" stroke="${decalSkin.accent}" stroke-width="2"/>` +
+          `<path d="M24 94 L16 128 L34 126 Z" fill="${decalSkin.sleeve}"/>` +
+          `<path d="M136 94 L144 128 L126 126 Z" fill="${decalSkin.sleeve}"/>`,
+        over:
+          `<path d="M64 82 L80 100 L96 82" fill="none" stroke="${decalSkin.accent}" stroke-width="3.5" stroke-linejoin="round"/>`,
+        top:
+          `<g class="decal-twinkle">` +
+          `<polygon points="34,26 37,33 44,36 37,39 34,46 31,39 24,36 31,33" fill="${decalSkin.accent}"/>` +
+          `<polygon points="126,22 129,29 136,32 129,35 126,42 123,35 116,32 123,29" fill="${decalSkin.accent2}"/>` +
+          `</g>`
+      };
+    }
+    // tubz: Inferno Puffer + Shoulder Flames
+    return {
+      back:
+        `<g class="decal-pulse">` +
+        `<path d="M26 88 Q20 66 34 58 Q38 74 44 82 Z" fill="${decalSkin.accent2}"/>` +
+        `<path d="M134 88 Q140 66 126 58 Q122 74 116 82 Z" fill="${decalSkin.accent2}"/>` +
+        `</g>`,
+      over:
+        `<rect x="40" y="79" width="80" height="12" rx="6" fill="${decalSkin.sleeve}" stroke="${decalSkin.accent2}" stroke-width="1.5"/>` +
+        `<line x1="44" y1="101" x2="116" y2="101" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>` +
+        `<line x1="44" y1="126" x2="116" y2="126" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>`,
+      top: ""
+    };
+  }
+
+  function buildFullCharacterSvg(player, gradId) {
+    const decalSkin = SPECIAL_DECAL_SKINS[player.shirtDecal] || null;
+    const shirtFill = decalSkin ? decalSkin.shirt : player.shirtColor || player.seatColor || "#3b82f6";
+    const armFill = decalSkin ? decalSkin.sleeve : shirtFill;
+    const shapeLayers = buildSpecialSkinShapeLayers(decalSkin);
+    const isBot = Boolean(player.isBot);
+    const faceMarkup = isBot
+      ? `<rect x="49" y="30" width="62" height="56" rx="16" fill="#dbeafe"/>` +
+        `<rect x="55" y="48" width="50" height="14" rx="5" fill="#0ea5e9"/>`
+      : `<rect x="49" y="30" width="62" height="56" rx="16" fill="#fcd5b5"/>` +
+        `<circle cx="67" cy="57" r="4.5" fill="#0f172a"/>` +
+        `<circle cx="93" cy="57" r="4.5" fill="#0f172a"/>` +
+        `<path d="M72 70 Q80 77 88 70" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>`;
+    const hairMarkup = buildHairSvgMarkup(player.hairStyle || "classic", player.hairColor || "#4a2c18", gradId);
+    return (
+      `<svg viewBox="0 -14 160 169" width="52" height="54" aria-hidden="true">` +
+      shapeLayers.back +
+      `<rect x="28" y="88" width="18" height="44" rx="9" fill="${armFill}"/>` +
+      `<rect x="114" y="88" width="18" height="44" rx="9" fill="${armFill}"/>` +
+      `<rect x="44" y="82" width="72" height="58" rx="16" fill="${shirtFill}"/>` +
+      `<path d="M68 82 Q80 94 92 82" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="3"/>` +
+      buildShirtDecalSvg(decalSkin, gradId) +
+      shapeLayers.over +
+      faceMarkup +
+      `<g>${hairMarkup}</g>` +
+      shapeLayers.top +
+      `</svg>`
+    );
+  }
+
+  function renderAvatarPreview() {
+    const decalSkin = SPECIAL_DECAL_SKINS[avatarConfig.shirtDecal] || null;
+    const isSpecial = Boolean(decalSkin);
+    const shapeLayers = buildSpecialSkinShapeLayers(decalSkin);
+
+    prevShirt.setAttribute("fill", isSpecial ? decalSkin.shirt : avatarConfig.shirtColor);
+    prevArmL.setAttribute("fill", isSpecial ? decalSkin.sleeve : avatarConfig.shirtColor);
+    prevArmR.setAttribute("fill", isSpecial ? decalSkin.sleeve : avatarConfig.shirtColor);
+    prevShirtDecal.innerHTML = buildShirtDecalSvg(decalSkin, "preview");
+    if (prevSkinBack) prevSkinBack.innerHTML = shapeLayers.back;
+    if (prevSkinOver) prevSkinOver.innerHTML = shapeLayers.over;
+    if (prevSkinTop) prevSkinTop.innerHTML = shapeLayers.top;
+
+    shirtDecalGrid.querySelectorAll(".decal-btn").forEach((el) => {
+      el.classList.toggle("active", el.dataset.decal === avatarConfig.shirtDecal);
+    });
+    shirtColorSection.classList.toggle("is-locked", isSpecial);
+    shirtColorLock.classList.toggle("hidden", !isSpecial);
+    customShirtPicker.disabled = isSpecial;
+
+    customShirtPicker.value = avatarConfig.shirtColor;
+    customHairPicker.value = avatarConfig.hairColor;
+
+    shirtColorSwatches.querySelectorAll(".c-swatch").forEach((el) => {
+      el.disabled = isSpecial;
+      el.classList.toggle(
+        "active",
+        !isSpecial && el.dataset.color.toLowerCase() === avatarConfig.shirtColor.toLowerCase()
+      );
+    });
+    hairColorSwatches.querySelectorAll(".c-swatch").forEach((el) => {
+      el.classList.toggle(
+        "active",
+        el.dataset.color.toLowerCase() === avatarConfig.hairColor.toLowerCase()
+      );
+    });
+    hairstyleGrid.querySelectorAll(".hairstyle-btn").forEach((el) => {
+      el.classList.toggle("active", el.dataset.style === avatarConfig.hairStyle);
+    });
+
+    const style = avatarConfig.hairStyle;
+    const markup = buildHairSvgMarkup(style, avatarConfig.hairColor, "hairGrad");
     const styleChanged = lastPreviewStyle !== style;
     lastPreviewStyle = style;
     prevHairLayer.innerHTML = `<g class="${styleChanged ? "hair-pop" : ""}">${markup}</g>`;
@@ -430,7 +672,18 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     menuOverlay.classList.remove("hidden");
   });
 
+  shirtDecalGrid.addEventListener("click", (e) => {
+    const btn = e.target.closest(".decal-btn");
+    if (!btn) return;
+    const decal = btn.dataset.decal;
+    if (decal !== "none" && !SPECIAL_DECAL_SKINS[decal]) return;
+    avatarConfig.shirtDecal = decal;
+    saveAvatarConfig();
+    renderAvatarPreview();
+  });
+
   shirtColorSwatches.addEventListener("click", (e) => {
+    if (avatarConfig.shirtDecal !== "none") return;
     const btn = e.target.closest(".c-swatch");
     if (!btn) return;
     avatarConfig.shirtColor = btn.dataset.color;
@@ -439,6 +692,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   });
 
   customShirtPicker.addEventListener("input", () => {
+    if (avatarConfig.shirtDecal !== "none") return;
     avatarConfig.shirtColor = customShirtPicker.value;
     saveAvatarConfig();
     renderAvatarPreview();
@@ -594,6 +848,75 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       li.appendChild(score);
       leaderboardList.appendChild(li);
     });
+    alignMobileLeaderboard();
+  }
+
+  function alignMobileLeaderboard() {
+    if ((window.innerWidth || 1280) > 640) {
+      hudLeaderboard.style.top = "";
+      return;
+    }
+    if (
+      hudTopCenter.classList.contains("hidden") ||
+      hudLeaderboard.classList.contains("hidden")
+    ) {
+      return;
+    }
+    const wordBottom = hudTopCenter.offsetTop + hudTopCenter.offsetHeight;
+    const lbHeight = hudLeaderboard.offsetHeight;
+    if (wordBottom > 0 && lbHeight > 0) {
+      const alignedTop = Math.max(12, Math.round(wordBottom - lbHeight));
+      hudLeaderboard.style.top = `${alignedTop}px`;
+    }
+  }
+
+  if (typeof window.ResizeObserver === "function") {
+    const hudObserver = new window.ResizeObserver(alignMobileLeaderboard);
+    hudObserver.observe(hudTopCenter);
+    hudObserver.observe(hudLeaderboard);
+  }
+  window.addEventListener("resize", alignMobileLeaderboard);
+
+  const PRESET_SHIRT_NAMES = {
+    "#3b82f6": "BLUE",
+    "#ef4444": "RED",
+    "#22c55e": "GREEN",
+    "#eab308": "YELLOW",
+    "#f97316": "ORANGE",
+    "#a855f7": "PURPLE",
+    "#ec4899": "PINK",
+    "#14b8a6": "TEAL",
+    "#334155": "CHARCOAL"
+  };
+
+  function describeShirtColor(hex) {
+    const clean = String(hex || "#3b82f6").trim().toLowerCase();
+    if (PRESET_SHIRT_NAMES[clean]) return PRESET_SHIRT_NAMES[clean];
+    const m = /^#([0-9a-f]{6})$/.exec(clean);
+    if (!m) return "COLOR";
+    const num = parseInt(m[1], 16);
+    const r = ((num >> 16) & 255) / 255;
+    const g = ((num >> 8) & 255) / 255;
+    const b = (num & 255) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    const l = (max + min) / 2;
+    const d = max - min;
+    if (l < 0.14) return "BLACK";
+    if (l > 0.9 && d < 0.12) return "WHITE";
+    if (d < 0.12) return "GRAY";
+    let h = 0;
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+    if (h < 18 || h >= 342) return "RED";
+    if (h < 42) return l < 0.35 ? "BROWN" : "ORANGE";
+    if (h < 68) return "YELLOW";
+    if (h < 155) return "GREEN";
+    if (h < 192) return "TEAL";
+    if (h < 252) return "BLUE";
+    if (h < 298) return "PURPLE";
+    return "PINK";
   }
 
   function updateLobbyUI(roomState) {
@@ -606,25 +929,43 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const li = document.createElement("li");
       if (p) {
         li.className = "lobby-player-item";
-        const dot = document.createElement("span");
-        dot.className = "lb-dot";
-        dot.style.background = p.seatColor || "#3b82f6";
 
-        const name = document.createElement("span");
-        name.textContent = p.id === appState.selfId ? `${p.name} (You)` : p.name;
+        const avatarBox = document.createElement("div");
+        avatarBox.className = "lobby-avatar-thumb";
+        avatarBox.innerHTML = buildFullCharacterSvg(p, `hairGrad-lobby-${i}`);
 
-        li.appendChild(dot);
-        li.appendChild(name);
+        const meta = document.createElement("div");
+        meta.className = "lobby-player-meta";
+
+        const nameRow = document.createElement("div");
+        nameRow.className = "lobby-player-name";
+        nameRow.textContent = p.id === appState.selfId ? `${p.name} (You)` : p.name;
+
+        const decalSkin = SPECIAL_DECAL_SKINS[p.shirtDecal] || null;
+        const shirtTypeName = decalSkin
+          ? decalSkin.label.toUpperCase()
+          : describeShirtColor(p.shirtColor || p.seatColor);
+
+        const skinLabel = document.createElement("div");
+        skinLabel.className = decalSkin ? "lobby-skin-label is-special" : "lobby-skin-label";
+        skinLabel.appendChild(
+          document.createTextNode(decalSkin ? "✨ Custom " : "👕 Custom ")
+        );
+        const typeEl = document.createElement("strong");
+        typeEl.className = "lobby-tee-type";
+        typeEl.textContent = shirtTypeName;
+        skinLabel.appendChild(typeEl);
+        skinLabel.appendChild(document.createTextNode(" Tee"));
+
+        meta.appendChild(nameRow);
+        meta.appendChild(skinLabel);
+        li.appendChild(avatarBox);
+        li.appendChild(meta);
 
         if (p.isHost || p.id === roomState.hostId) {
           const tag = document.createElement("span");
           tag.className = "host-tag";
           tag.textContent = "👑 Host";
-          li.appendChild(tag);
-        } else if (p.isBot) {
-          const tag = document.createElement("span");
-          tag.className = "host-tag";
-          tag.textContent = "🤖 Bot";
           li.appendChild(tag);
         }
       } else {
@@ -682,6 +1023,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     hudTopCenter.classList.remove("hidden");
     hudLeaderboard.classList.remove("hidden");
     btnChatToggle.classList.remove("hidden");
+    alignMobileLeaderboard();
     startBlasterTicker();
   }
 
@@ -731,7 +1073,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       btnPaintBlaster.classList.add("is-cooldown");
       btnPaintBlaster.classList.remove("is-ready");
       paintBlasterTimer.classList.remove("ready");
-      paintBlasterTimer.textContent = "Locked (Last 15s)";
+      paintBlasterTimer.textContent = "Locked (Last 10s)";
     } else {
       btnPaintBlaster.disabled = true;
       btnPaintBlaster.classList.add("is-cooldown");
@@ -938,11 +1280,6 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     btnTogglePad.textContent = collapsed ? "▴" : "▾";
   });
 
-  btnSoundToggle.addEventListener("click", () => {
-    soundFX.enabled = !soundFX.enabled;
-    btnSoundToggle.textContent = soundFX.enabled ? "🔊 Sound On" : "🔇 Muted";
-  });
-
   btnChatToggle.addEventListener("click", () => {
     setChatOpen(!appState.chatOpen);
   });
@@ -955,7 +1292,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     }
 
     if (appState.mode === "singleplayer") {
-      appState.blasterReadyAt = Date.now() + 400 * 1000;
+      appState.blasterReadyAt = Date.now() + 220 * 1000;
       const seed = Math.floor(Math.random() * 1000000000);
       whiteboard.applyMegaBlackSplat(seed, false);
       soundFX.roundTimeout();
@@ -1147,20 +1484,55 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const mayaHairColor =
         botHairColors[Math.floor(Math.random() * botHairColors.length)];
 
+      const botNamePool = [
+        "Leo",
+        "Maya",
+        "Zoe",
+        "Kai",
+        "Milo",
+        "Nova",
+        "Liam",
+        "Aria",
+        "Noah",
+        "Chloe",
+        "Evan",
+        "Ruby",
+        "Owen",
+        "Nora",
+        "Finn",
+        "Ivy",
+        "Sam",
+        "Jude",
+        "Toby",
+        "Zara"
+      ];
+      const takenNames = new Set([humanName.toLowerCase()]);
+      const pickBotName = () => {
+        const avail = botNamePool.filter((n) => !takenNames.has(n.toLowerCase()));
+        const pool = avail.length ? avail : botNamePool;
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+        takenNames.add(chosen.toLowerCase());
+        return chosen;
+      };
+      const bot1Name = pickBotName();
+      const bot2Name = pickBotName();
+
+      const decalSkin = SPECIAL_DECAL_SKINS[avatarConfig.shirtDecal] || null;
       this.players = [
         {
           id: "human",
           name: humanName,
           score: 0,
-          seatColor: avatarConfig.shirtColor,
-          shirtColor: avatarConfig.shirtColor,
+          seatColor: decalSkin ? decalSkin.accent : avatarConfig.shirtColor,
+          shirtColor: decalSkin ? decalSkin.shirt : avatarConfig.shirtColor,
+          shirtDecal: avatarConfig.shirtDecal,
           hairColor: avatarConfig.hairColor,
           hairStyle: avatarConfig.hairStyle,
           isBot: false
         },
         {
           id: "bot_leo",
-          name: "Bot Leo",
+          name: bot1Name,
           score: 0,
           seatColor: "#ef4444",
           shirtColor: "#ef4444",
@@ -1170,7 +1542,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         },
         {
           id: "bot_maya",
-          name: "Bot Maya",
+          name: bot2Name,
           score: 0,
           seatColor: "#22c55e",
           shirtColor: "#22c55e",
@@ -1186,8 +1558,8 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       this.currentWord = null;
       this.usedWords.clear();
 
-      // Random initial Paint Blaster cooldown (60s-240s) for each player
-      const randWaitMs = () => (60 + Math.floor(Math.random() * 181)) * 1000;
+      // Random initial Paint Blaster cooldown (50s-120s) for each player
+      const randWaitMs = () => (50 + Math.floor(Math.random() * 71)) * 1000;
       appState.blasterReadyAt = Date.now() + randWaitMs();
       this.botBlasterReadyAt = {
         bot_leo: Date.now() + randWaitMs(),
@@ -1364,9 +1736,9 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const segments = getBotDrawingSegments(word);
       if (!segments.length) return;
 
-      // Scale segment delays so total sketch finishes naturally in ~13-22s
+      // Scale segment delays so total sketch finishes naturally in ~9-18s
       const rawTotal = segments.reduce((sum, s) => sum + (s.delayMs || 50), 0);
-      const targetTotal = Math.min(22000, Math.max(12000, rawTotal));
+      const targetTotal = Math.min(18000, Math.max(9000, rawTotal));
       const timeScale = rawTotal > 0 ? targetTotal / rawTotal : 1;
       let idx = 0;
 
@@ -1401,7 +1773,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const pickDecoy = () => decoys[Math.floor(Math.random() * decoys.length)];
 
       // Realistic staggered guesses from the competing bot, giving human plenty of time first
-      const schedule = [11000, 22000, 32000];
+      const schedule = [7000, 15000, 21500];
       schedule.forEach((delay) => {
         this.addTimeout(() => {
           if (!this.active || this.phase !== "drawing") return;
@@ -1413,8 +1785,8 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         }, delay);
       });
 
-      // Late solve at ~38-42.5s if human still hasn't solved it
-      const solveAt = 38000 + Math.random() * 4500;
+      // Late solve at ~25-28.2s if human still hasn't solved it
+      const solveAt = 25000 + Math.random() * 3200;
       this.addTimeout(() => {
         if (!this.active || this.phase !== "drawing") return;
         this.finishRound("guessed", otherBot);
@@ -1455,7 +1827,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
           Date.now() - this.roundStartMs < BLASTER_WINDOW_MS &&
           completeness >= 0.25
         ) {
-          this.botBlasterReadyAt[bot.id] = Date.now() + 400 * 1000;
+          this.botBlasterReadyAt[bot.id] = Date.now() + 220 * 1000;
           const seed = Math.floor(Math.random() * 1000000000);
           whiteboard.applyMegaBlackSplat(seed, true);
           soundFX.roundTimeout();
@@ -1471,7 +1843,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         }
 
         // Bots cannot solve an empty/barely started canvas; more complete drawings solve faster!
-        const requiredSeconds = Math.max(16, 36 - completeness * 16);
+        const requiredSeconds = Math.max(11, 24 - completeness * 11);
         if (completeness >= 0.48 && elapsedSec >= requiredSeconds) {
           this.finishRound("guessed", bot);
           return;
@@ -1874,6 +2246,15 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
   initSocketConnection();
 
+  if (splashScreen) {
+    setTimeout(() => {
+      splashScreen.classList.add("is-fading");
+      setTimeout(() => {
+        splashScreen.classList.add("hidden");
+      }, 450);
+    }, 4550);
+  }
+
   // ============================================================================
   // Menu, Lobby, Chat & Game Over Actions
   // ============================================================================
@@ -1888,7 +2269,21 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     const pill = e.target.closest(".bot-pill");
     if (!pill || pill.disabled || appState.mode !== "multiplayer" || !socket) return;
     const botCount = Math.max(0, Math.min(1, Number(pill.dataset.bots) || 0));
+
+    let settled = false;
+    const ackTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      showError(
+        lobbyError,
+        "Backend server did not respond to bot update. Make sure the latest backend/server.js is deployed on Render."
+      );
+    }, 6000);
+
     socket.emit("set_room_bots", { botCount }, (res) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(ackTimer);
       if (res && !res.ok) {
         showError(lobbyError, res.error || "Could not update bots.");
       } else {

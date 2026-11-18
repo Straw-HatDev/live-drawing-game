@@ -797,14 +797,246 @@
       this.setCameraMode("spin");
     }
 
+    _getSpecialDecalSkin(decalId) {
+      const skins = {
+        chief: {
+          id: "chief",
+          label: "Chief",
+          shirt: "#081226",
+          shirt2: "#0f294a",
+          sleeve: "#0369a1",
+          accent: "#38bdf8",
+          accent2: "#a78bfa",
+          text: "#ffffff"
+        },
+        cbert: {
+          id: "cbert",
+          label: "Cbert",
+          shirt: "#450a0a",
+          shirt2: "#991b1b",
+          sleeve: "#b91c1c",
+          accent: "#fb7185",
+          accent2: "#fde047",
+          text: "#ffffff"
+        },
+        hunter: {
+          id: "hunter",
+          label: "Hunter",
+          shirt: "#022c22",
+          shirt2: "#065f46",
+          sleeve: "#047857",
+          accent: "#34d399",
+          accent2: "#bef264",
+          text: "#ecfdf5"
+        },
+        fours: {
+          id: "fours",
+          label: "Fours",
+          shirt: "#2e1065",
+          shirt2: "#581c87",
+          sleeve: "#7e22ce",
+          accent: "#fde047",
+          accent2: "#f472b6",
+          text: "#fef9c3"
+        },
+        tubz: {
+          id: "tubz",
+          label: "Tubz",
+          shirt: "#1c1917",
+          shirt2: "#431407",
+          sleeve: "#ea580c",
+          accent: "#fb923c",
+          accent2: "#facc15",
+          text: "#fff7ed"
+        }
+      };
+      return skins[decalId] || null;
+    }
+
+    _drawSpecialDecalTexture(entry, elapsedSec) {
+      const { id, skin, ctx, tex } = entry;
+      const w = 256;
+      const h = 256;
+
+      // Diagonal rich jersey gradient
+      const bg = ctx.createLinearGradient(0, 0, w, h);
+      bg.addColorStop(0, skin.shirt);
+      bg.addColorStop(1, skin.shirt2);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Unique animated motif per Special Decal skin
+      ctx.save();
+      if (id === "chief") {
+        ctx.translate(128, 128);
+        ctx.rotate(elapsedSec * 0.9);
+        ctx.strokeStyle = skin.accent;
+        ctx.lineWidth = 4;
+        ctx.setLineDash([16, 10]);
+        ctx.beginPath();
+        ctx.arc(0, 0, 88, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.rotate(-elapsedSec * 1.6);
+        ctx.strokeStyle = skin.accent2;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 72, 0, Math.PI * 1.4);
+        ctx.stroke();
+      } else if (id === "cbert") {
+        const shift = (elapsedSec * 36) % 44;
+        ctx.strokeStyle = skin.accent2;
+        ctx.lineWidth = 5;
+        for (let y = 40; y <= 230; y += 44) {
+          ctx.globalAlpha = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(elapsedSec * 4 + y));
+          ctx.beginPath();
+          ctx.moveTo(24, y + 34 - shift * 0.4);
+          ctx.lineTo(128, y - shift * 0.4);
+          ctx.lineTo(232, y + 34 - shift * 0.4);
+          ctx.stroke();
+        }
+      } else if (id === "hunter") {
+        const pulse = 0.65 + 0.35 * Math.sin(elapsedSec * 3.5);
+        ctx.strokeStyle = skin.accent;
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath();
+        ctx.moveTo(128, 36);
+        ctx.lineTo(212, 128);
+        ctx.lineTo(128, 220);
+        ctx.lineTo(44, 128);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.strokeStyle = skin.accent2;
+        ctx.beginPath();
+        ctx.moveTo(0, 128);
+        ctx.lineTo(44, 128);
+        ctx.moveTo(212, 128);
+        ctx.lineTo(256, 128);
+        ctx.stroke();
+      } else if (id === "fours") {
+        for (let i = 0; i < 6; i += 1) {
+          const ang = elapsedSec * 0.9 + (i * Math.PI) / 3;
+          const sx = 128 + Math.cos(ang) * 86;
+          const sy = 128 + Math.sin(ang) * 76;
+          const r = 4 + 3 * Math.sin(elapsedSec * 5 + i);
+          ctx.fillStyle = i % 2 === 0 ? skin.accent : skin.accent2;
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.arc(sx, sy, Math.max(2, r), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else {
+        ctx.lineWidth = 6;
+        for (let row = 0; row < 2; row += 1) {
+          ctx.strokeStyle = row === 0 ? skin.accent : skin.accent2;
+          ctx.globalAlpha = 0.78;
+          ctx.beginPath();
+          for (let x = 0; x <= w; x += 12) {
+            const y = 176 + row * 22 + Math.sin(x * 0.055 - elapsedSec * 5 + row) * 10;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // Athletic V-collar trim
+      ctx.strokeStyle = skin.accent;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(74, 0);
+      ctx.lineTo(128, 42);
+      ctx.lineTo(182, 0);
+      ctx.stroke();
+
+      // Sleek chest badge pill
+      ctx.fillStyle = "rgba(2, 6, 23, 0.74)";
+      ctx.strokeStyle = skin.accent;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(24, 92, 208, 72, 24);
+      } else {
+        ctx.rect(24, 92, 208, 72);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Bold glowing skin text
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = '800 50px "Fredoka", "Nunito", "Segoe UI", sans-serif';
+      ctx.shadowColor = skin.accent;
+      ctx.shadowBlur = 12;
+      ctx.fillStyle = skin.text;
+      ctx.fillText(skin.label, 128, 129);
+      ctx.shadowBlur = 0;
+
+      // Sweeping diagonal holographic shine bar
+      const sweep = ((elapsedSec * 145) % 420) - 90;
+      const shine = ctx.createLinearGradient(sweep - 34, 0, sweep + 34, 0);
+      shine.addColorStop(0, "rgba(255, 255, 255, 0)");
+      shine.addColorStop(0.5, "rgba(255, 255, 255, 0.28)");
+      shine.addColorStop(1, "rgba(255, 255, 255, 0)");
+      ctx.save();
+      ctx.transform(1, 0, -0.35, 1, 0, 0);
+      ctx.fillStyle = shine;
+      ctx.fillRect(sweep - 34, 0, 68, h);
+      ctx.restore();
+
+      tex.needsUpdate = true;
+    }
+
+    _getSpecialDecalMaterials(decalId, skin) {
+      if (!this.decalMatCache) this.decalMatCache = new Map();
+      if (this.decalMatCache.has(decalId)) return this.decalMatCache.get(decalId);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.encoding = THREE.sRGBEncoding;
+
+      const sideMat = new THREE.MeshLambertMaterial({ color: skin.shirt });
+      const frontMat = new THREE.MeshLambertMaterial({
+        map: tex,
+        emissive: 0xffffff,
+        emissiveMap: tex,
+        emissiveIntensity: 0.18
+      });
+      const sleeveMat = new THREE.MeshLambertMaterial({ color: skin.sleeve });
+
+      // BoxGeometry face order: +x, -x, +y, -y, +z (front), -z (back)
+      const bundle = {
+        id: decalId,
+        skin,
+        canvas,
+        ctx,
+        tex,
+        torsoMats: [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat],
+        sleeveMat
+      };
+      this._drawSpecialDecalTexture(bundle, 0);
+      this.decalMatCache.set(decalId, bundle);
+      return bundle;
+    }
+
     _createAvatarMesh(player) {
       const root = new THREE.Group();
+      const shirtDecal = player.shirtDecal || "none";
+      const decalSkin = this._getSpecialDecalSkin(shirtDecal);
       const shirtHex = player.shirtColor || player.seatColor || "#3b82f6";
       const hairHex = player.hairColor || "#4a2c18";
       const hairStyle = player.hairStyle || "classic";
       const isBot = Boolean(player.isBot || String(player.name || "").startsWith("Bot "));
 
+      const decalBundle = decalSkin ? this._getSpecialDecalMaterials(shirtDecal, decalSkin) : null;
       const shirtMat = new THREE.MeshLambertMaterial({ color: shirtHex });
+      const armMat = decalBundle ? decalBundle.sleeveMat : shirtMat;
+      const torsoMat = decalBundle ? decalBundle.torsoMats : shirtMat;
       const pantsMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
       const skinMat = new THREE.MeshLambertMaterial({
         color: isBot ? 0xdbeafe : 0xfcd5b5
@@ -815,7 +1047,7 @@
       // Seated torso
       const torso = new THREE.Mesh(
         new THREE.BoxGeometry(0.56, 0.62, 0.34),
-        shirtMat
+        torsoMat
       );
       torso.position.set(0, 0.34, 0);
       torso.castShadow = true;
@@ -873,22 +1105,19 @@
         headGroup.add(leftEye, rightEye);
       }
 
-      // Cute artist beret visible when player is active Drawer
-      const beret = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.28, 0.24, 0.12, 12),
-        new THREE.MeshLambertMaterial({ color: 0xef4444 })
-      );
-      beret.position.set(0.04, 0.31, -0.02);
-      beret.rotation.z = -0.18;
-      beret.visible = false;
-      headGroup.add(beret);
+      // Floating golden crown visible just above the hair while selected as Drawer
+      const crownBaseY = this._getCrownBaseY(hairStyle);
+      const crownGroup = this._createCrownGroup();
+      crownGroup.position.set(0, crownBaseY, 0.02);
+      crownGroup.visible = false;
+      root.add(crownGroup);
 
       root.add(headGroup);
 
       // Left and right arms reaching toward desk
       const leftArm = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.16, 0.48),
-        shirtMat
+        armMat
       );
       leftArm.position.set(-0.34, 0.44, 0.22);
       leftArm.rotation.x = 0.25;
@@ -896,13 +1125,17 @@
 
       const rightArm = new THREE.Mesh(
         new THREE.BoxGeometry(0.16, 0.16, 0.48),
-        shirtMat
+        armMat
       );
       rightArm.position.set(0.34, 0.44, 0.22);
       rightArm.rotation.x = 0.25;
       rightArm.castShadow = true;
 
       root.add(leftArm, rightArm);
+
+      const skinParts = decalSkin
+        ? this._buildSpecialSkin3DExtras(root, headGroup, shirtDecal, decalSkin)
+        : [];
 
       // Floating 3D nameplate Sprite
       const plateCanvas = document.createElement("canvas");
@@ -917,7 +1150,7 @@
         depthTest: false
       });
       const plateSprite = new THREE.Sprite(plateMat);
-      plateSprite.position.set(0, 1.75, 0);
+      plateSprite.position.set(0, crownBaseY + 0.42, 0);
       plateSprite.scale.set(2.3, 0.66, 1);
       plateSprite.renderOrder = 10;
       root.add(plateSprite);
@@ -926,14 +1159,226 @@
         root,
         headGroup,
         rightArm,
-        beret,
+        shirtDecal,
+        crownGroup,
+        crownBaseY,
         plateCanvas,
         plateTex,
         lastPlateKey: "",
-        avatarKey: `${shirtHex}|${hairHex}|${hairStyle}|${isBot ? 1 : 0}`,
+        avatarKey: `${shirtHex}|${shirtDecal}|${hairHex}|${hairStyle}|${isBot ? 1 : 0}`,
         hairParts,
+        skinParts,
         jumpTimer: 0
       };
+    }
+
+    _buildSpecialSkin3DExtras(root, headGroup, decalId, skin) {
+      const animParts = [];
+      const accentMat = new THREE.MeshLambertMaterial({ color: skin.accent });
+      const accent2Mat = new THREE.MeshBasicMaterial({ color: skin.accent2 });
+      const sleeveMat = new THREE.MeshLambertMaterial({ color: skin.sleeve });
+
+      if (decalId === "chief") {
+        // Flowing royal cape + angled armored shoulder pauldrons
+        const capePivot = new THREE.Group();
+        capePivot.position.set(0, 0.62, -0.18);
+        const cape = new THREE.Mesh(
+          new THREE.BoxGeometry(0.64, 0.68, 0.05),
+          sleeveMat
+        );
+        cape.position.set(0, -0.32, -0.05);
+        cape.rotation.x = 0.24;
+        cape.castShadow = true;
+        capePivot.add(cape);
+        root.add(capePivot);
+        animParts.push({ type: "swayX", obj: capePivot, base: 0, amp: 0.09, speed: 2.6 });
+
+        [-1, 1].forEach((side) => {
+          const pauldron = new THREE.Mesh(
+            new THREE.BoxGeometry(0.24, 0.14, 0.36),
+            accentMat
+          );
+          pauldron.position.set(side * 0.35, 0.61, 0.02);
+          pauldron.rotation.z = side * -0.28;
+          pauldron.castShadow = true;
+          root.add(pauldron);
+        });
+      } else if (decalId === "cbert") {
+        // Demon hoodie back-shell + twin glowing horns
+        const hood = new THREE.Mesh(
+          new THREE.BoxGeometry(0.54, 0.42, 0.16),
+          sleeveMat
+        );
+        hood.position.set(0, 0.04, -0.22);
+        hood.castShadow = true;
+        headGroup.add(hood);
+
+        [-1, 1].forEach((side) => {
+          const horn = new THREE.Mesh(
+            new THREE.ConeGeometry(0.06, 0.24, 6),
+            accent2Mat
+          );
+          horn.position.set(side * 0.2, 0.32, 0.04);
+          horn.rotation.z = side * -0.4;
+          horn.rotation.x = 0.18;
+          headGroup.add(horn);
+        });
+      } else if (decalId === "hunter") {
+        // Angled quiver + 3 arrow fletchings + diagonal bandolier strap
+        const quiver = new THREE.Group();
+        quiver.position.set(0.14, 0.56, -0.22);
+        quiver.rotation.z = -0.35;
+        const tube = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.07, 0.055, 0.46, 8),
+          new THREE.MeshLambertMaterial({ color: 0x78350f })
+        );
+        tube.castShadow = true;
+        quiver.add(tube);
+        [-0.025, 0, 0.025].forEach((ox, idx) => {
+          const fletch = new THREE.Mesh(
+            new THREE.ConeGeometry(0.026, 0.1, 4),
+            idx === 1 ? accent2Mat : accentMat
+          );
+          fletch.position.set(ox, 0.27, 0);
+          quiver.add(fletch);
+        });
+        root.add(quiver);
+
+        const strap = new THREE.Mesh(
+          new THREE.BoxGeometry(0.68, 0.075, 0.38),
+          new THREE.MeshLambertMaterial({ color: 0x78350f })
+        );
+        strap.position.set(0, 0.42, 0);
+        strap.rotation.z = -0.68;
+        root.add(strap);
+      } else if (decalId === "fours") {
+        // Flared cosmic robe hem + 2 orbiting golden stars
+        const robeSkirt = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.32, 0.48, 0.32, 8),
+          sleeveMat
+        );
+        robeSkirt.position.set(0, 0.12, 0.04);
+        robeSkirt.castShadow = true;
+        root.add(robeSkirt);
+
+        const orbitGroup = new THREE.Group();
+        orbitGroup.position.set(0, 1.0, 0.02);
+        [0, Math.PI].forEach((ang, idx) => {
+          const star = new THREE.Mesh(
+            new THREE.OctahedronGeometry(0.065, 0),
+            idx === 0 ? accentMat : accent2Mat
+          );
+          star.position.set(Math.cos(ang) * 0.46, 0.05, Math.sin(ang) * 0.46);
+          orbitGroup.add(star);
+        });
+        root.add(orbitGroup);
+        animParts.push({ type: "orbitY", obj: orbitGroup, speed: 2.2 });
+      } else if (decalId === "tubz") {
+        // Chunky quilted puffer jacket ribs + collar + flickering shoulder flames
+        [0.24, 0.42, 0.56].forEach((ry) => {
+          const rib = new THREE.Mesh(
+            new THREE.BoxGeometry(0.64, 0.12, 0.41),
+            ry === 0.56 ? sleeveMat : new THREE.MeshLambertMaterial({ color: skin.shirt2 })
+          );
+          rib.position.set(0, ry, 0);
+          rib.castShadow = true;
+          root.add(rib);
+        });
+        [-1, 1].forEach((side, idx) => {
+          const flame = new THREE.Mesh(
+            new THREE.ConeGeometry(0.085, 0.24, 5),
+            idx === 0 ? accent2Mat : accentMat
+          );
+          flame.position.set(side * 0.35, 0.69, 0.02);
+          root.add(flame);
+          animParts.push({ type: "pulseScale", obj: flame, base: 1, amp: 0.22, speed: 6.5, phase: idx * 1.4 });
+        });
+      }
+
+      return animParts;
+    }
+
+    _getCrownBaseY(hairStyle) {
+      if (hairStyle === "spiky" || hairStyle === "mohawk") return 1.66;
+      if (hairStyle === "bun") return 1.6;
+      if (hairStyle === "curly") return 1.56;
+      return 1.44;
+    }
+
+    _createCrownGroup() {
+      const crown = new THREE.Group();
+      const goldMat = new THREE.MeshLambertMaterial({
+        color: 0xfacc15,
+        emissive: 0x854d0e,
+        emissiveIntensity: 0.35
+      });
+      const trimMat = new THREE.MeshLambertMaterial({ color: 0xf59e0b });
+      const velvetMat = new THREE.MeshLambertMaterial({ color: 0xb91c1c });
+      const pearlMat = new THREE.MeshBasicMaterial({ color: 0xfef9c3 });
+      const gemColors = [0xef4444, 0x3b82f6, 0x22c55e, 0xa855f7, 0x06b6d4];
+
+      // Velvet inner cushion + main golden crown band
+      const velvet = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.155, 0.14, 0.06, 12),
+        velvetMat
+      );
+      velvet.position.y = 0.04;
+      crown.add(velvet);
+
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.185, 0.16, 0.09, 14),
+        goldMat
+      );
+      band.position.y = 0.045;
+      band.castShadow = true;
+      crown.add(band);
+
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(0.165, 0.022, 6, 16),
+        trimMat
+      );
+      rim.rotation.x = Math.PI / 2;
+      rim.position.y = 0.01;
+      crown.add(rim);
+
+      // 5 royal points with pearls and front-band gems
+      const points = 5;
+      for (let i = 0; i < points; i += 1) {
+        const angle = (i / points) * Math.PI * 2;
+        const radial = new THREE.Group();
+        radial.rotation.y = angle;
+
+        const spikePivot = new THREE.Group();
+        spikePivot.position.set(0, 0.085, 0.16);
+        spikePivot.rotation.x = 0.18;
+
+        const spike = new THREE.Mesh(
+          new THREE.ConeGeometry(0.052, 0.14, 4),
+          goldMat
+        );
+        spike.position.y = 0.065;
+        spike.castShadow = true;
+        spikePivot.add(spike);
+
+        const pearl = new THREE.Mesh(
+          new THREE.SphereGeometry(0.028, 7, 7),
+          pearlMat
+        );
+        pearl.position.y = 0.145;
+        spikePivot.add(pearl);
+        radial.add(spikePivot);
+
+        const gem = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.028, 0),
+          new THREE.MeshBasicMaterial({ color: gemColors[i % gemColors.length] })
+        );
+        gem.position.set(0, 0.045, 0.185);
+        radial.add(gem);
+
+        crown.add(radial);
+      }
+
+      return crown;
     }
 
     /**
@@ -1221,10 +1666,11 @@
 
       players.forEach((player, idx) => {
         const shirtHex = player.shirtColor || player.seatColor || "#3b82f6";
+        const shirtDecal = player.shirtDecal || "none";
         const hairHex = player.hairColor || "#4a2c18";
         const hairStyle = player.hairStyle || "classic";
         const isBot = Boolean(player.isBot || String(player.name || "").startsWith("Bot "));
-        const desiredKey = `${shirtHex}|${hairHex}|${hairStyle}|${isBot ? 1 : 0}`;
+        const desiredKey = `${shirtHex}|${shirtDecal}|${hairHex}|${hairStyle}|${isBot ? 1 : 0}`;
 
         let av = this.avatarMap.get(player.id);
         if (av && av.avatarKey !== desiredKey) {
@@ -1240,7 +1686,7 @@
         }
 
         const isDrawer = player.id === drawerId;
-        av.beret.visible = isDrawer;
+        av.crownGroup.visible = isDrawer;
         this._updateNameplate(av, player, isDrawer);
 
         let targetDesk = null;
@@ -1314,32 +1760,52 @@
 
     _updateCameraTargets() {
       const aspect = (window.innerWidth || 1280) / Math.max(1, window.innerHeight || 720);
-      const narrowOffset = aspect < 1.15 ? 2.6 : 0;
+      const isPortrait = aspect < 0.95;
 
       if (this.cameraMode === "spin") {
         // Frame the 3D spinwheel on the left of the massive whiteboard
-        this.desiredCamPos.set(-4.35, 4.5, 0.4 + narrowOffset * 0.6);
+        const spinZ = isPortrait ? 3.2 : aspect < 1.15 ? 2.0 : 0.4;
+        this.desiredCamPos.set(-4.35, 4.5, spinZ);
         this.desiredLookAt.set(-6.0, 4.35, -6.8);
       } else if (this.cameraMode === "gameplay") {
-        // Elevated over-the-shoulder view zoomed back to clearly frame all guessers, drawer, and whiteboard
-        this.desiredCamPos.set(0.2, 7.8 + narrowOffset * 0.35, 14.4 + narrowOffset);
-        this.desiredLookAt.set(0.5, 2.3, -4.6);
+        // Frame guessers, full whiteboard, and the drawer desk on the right
+        if (isPortrait) {
+          this.desiredCamPos.set(1.0, 9.6, 22.6);
+          this.desiredLookAt.set(1.75, 2.3, -4.8);
+        } else {
+          const narrowOffset = aspect < 1.15 ? 2.8 : 0;
+          this.desiredCamPos.set(0.7, 7.9 + narrowOffset * 0.35, 15.0 + narrowOffset);
+          this.desiredLookAt.set(1.1, 2.3, -4.6);
+        }
       } else if (this.cameraMode === "gameover") {
-        this.desiredCamPos.set(0.4, 6.8, 11.8 + narrowOffset);
-        this.desiredLookAt.set(0.5, 2.5, -4.8);
+        if (isPortrait) {
+          this.desiredCamPos.set(1.0, 8.2, 18.8);
+          this.desiredLookAt.set(1.5, 2.4, -4.8);
+        } else {
+          const narrowOffset = aspect < 1.15 ? 2.6 : 0;
+          this.desiredCamPos.set(0.7, 6.9, 12.6 + narrowOffset);
+          this.desiredLookAt.set(1.0, 2.5, -4.8);
+        }
       } else {
         // Scenic menu/lobby view
-        this.desiredCamPos.set(0.2, 8.0, 15.2 + narrowOffset);
-        this.desiredLookAt.set(0.4, 2.6, -4.5);
+        if (isPortrait) {
+          this.desiredCamPos.set(1.0, 9.6, 22.8);
+          this.desiredLookAt.set(1.6, 2.5, -4.6);
+        } else {
+          const narrowOffset = aspect < 1.15 ? 2.6 : 0;
+          this.desiredCamPos.set(0.6, 8.1, 15.8 + narrowOffset);
+          this.desiredLookAt.set(0.9, 2.6, -4.5);
+        }
       }
     }
 
     _handleResize() {
       const w = window.innerWidth || 1280;
       const h = window.innerHeight || 720;
-      this.camera.aspect = w / h;
-      // Slightly wider vertical FOV on portrait mobile viewports
-      this.camera.fov = w / h < 1 ? 58 : 48;
+      const aspect = w / h;
+      this.camera.aspect = aspect;
+      // Wider vertical FOV on narrow portrait phone screens so drawer + all players fit
+      this.camera.fov = aspect < 0.7 ? 65 : aspect < 1 ? 58 : 48;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h, false);
       this._updateCameraTargets();
@@ -1411,6 +1877,23 @@
         }
       }
 
+      // Animate any active Special Decal 3D shirt textures (~22fps)
+      if (this.decalMatCache && this.elapsed - (this._lastDecalFrame || 0) >= 0.045) {
+        this._lastDecalFrame = this.elapsed;
+        const activeDecals = new Set();
+        for (const av of this.avatarMap.values()) {
+          if (av.shirtDecal && av.shirtDecal !== "none") {
+            activeDecals.add(av.shirtDecal);
+          }
+        }
+        activeDecals.forEach((decalId) => {
+          const entry = this.decalMatCache.get(decalId);
+          if (entry) {
+            this._drawSpecialDecalTexture(entry, this.elapsed);
+          }
+        });
+      }
+
       // Seated avatar animations
       for (const [id, av] of this.avatarMap.entries()) {
         const baseY = av.root.userData.baseY || 0.66;
@@ -1434,6 +1917,26 @@
             if (p.py) p.obj.position.y = p.base.py + s * p.py;
             if (p.sc) p.obj.scale.setScalar(p.base.s * (1 + s * p.sc));
           }
+        }
+
+        if (av.skinParts && av.skinParts.length) {
+          for (const sp of av.skinParts) {
+            if (sp.type === "swayX") {
+              sp.obj.rotation.x = sp.base + Math.sin(this.elapsed * sp.speed + phase) * sp.amp;
+            } else if (sp.type === "orbitY") {
+              sp.obj.rotation.y += dt * sp.speed;
+            } else if (sp.type === "pulseScale") {
+              const s = sp.base + Math.sin(this.elapsed * sp.speed + (sp.phase || 0)) * sp.amp;
+              sp.obj.scale.set(1, s, 1);
+            }
+          }
+        }
+
+        if (av.crownGroup && av.crownGroup.visible) {
+          av.crownGroup.position.y =
+            av.crownBaseY + Math.sin(this.elapsed * 3.2 + phase) * 0.045;
+          av.crownGroup.rotation.y += dt * 1.1;
+          av.crownGroup.rotation.z = Math.sin(this.elapsed * 2.0 + phase) * 0.05;
         }
 
         if (id === this.currentDrawerId && this.drawerIsSketching) {
