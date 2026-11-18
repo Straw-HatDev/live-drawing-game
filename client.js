@@ -9,7 +9,8 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   const { WORD_POOL, getBotDrawingSegments } = window.GAME_WORDS;
 
   const MAX_ROUNDS = 10;
-  const DRAW_SECONDS = 60;
+  const DRAW_SECONDS = 45;
+  const BLASTER_WINDOW_MS = 30 * 1000;
   const WORD_CHOICE_SECONDS = 10;
   const INTRO_SPIN_DURATION_MS = 5000;
   const INTRO_HOLD_MS = 1800;
@@ -169,6 +170,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     players: [],
     bannerTimeout: null,
     chatOpen: false,
+    drawStartedAt: 0,
     blasterReadyAt: 0,
     blasterTickerId: null
   };
@@ -705,18 +707,31 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
     paintBlasterWrap.classList.remove("hidden");
     const remSec = Math.max(0, Math.ceil((appState.blasterReadyAt - Date.now()) / 1000));
+    const inDrawPhase =
+      appState.phase === "drawing" && appState.selfId !== appState.drawerId;
+    const inBlasterWindow =
+      inDrawPhase &&
+      appState.drawStartedAt > 0 &&
+      Date.now() - appState.drawStartedAt < BLASTER_WINDOW_MS;
+
     if (remSec > 0) {
       btnPaintBlaster.disabled = true;
       btnPaintBlaster.classList.add("is-cooldown");
       btnPaintBlaster.classList.remove("is-ready");
       paintBlasterTimer.classList.remove("ready");
       paintBlasterTimer.textContent = `Wait ${formatBlasterWait(remSec)}`;
-    } else if (appState.phase === "drawing" && appState.selfId !== appState.drawerId) {
+    } else if (inBlasterWindow) {
       btnPaintBlaster.disabled = false;
       btnPaintBlaster.classList.remove("is-cooldown");
       btnPaintBlaster.classList.add("is-ready");
       paintBlasterTimer.classList.add("ready");
       paintBlasterTimer.textContent = "READY!";
+    } else if (inDrawPhase) {
+      btnPaintBlaster.disabled = true;
+      btnPaintBlaster.classList.add("is-cooldown");
+      btnPaintBlaster.classList.remove("is-ready");
+      paintBlasterTimer.classList.remove("ready");
+      paintBlasterTimer.textContent = "Locked (Last 15s)";
     } else {
       btnPaintBlaster.disabled = true;
       btnPaintBlaster.classList.add("is-cooldown");
@@ -846,6 +861,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     appState.phase = "menu";
     appState.roomCode = null;
     appState.drawerId = null;
+    appState.drawStartedAt = 0;
     appState.players = [];
 
     stopBlasterTicker();
@@ -934,6 +950,9 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
   btnPaintBlaster.addEventListener("click", () => {
     if (appState.phase !== "drawing" || appState.selfId === appState.drawerId) return;
     if (Date.now() < appState.blasterReadyAt) return;
+    if (!appState.drawStartedAt || Date.now() - appState.drawStartedAt >= BLASTER_WINDOW_MS) {
+      return;
+    }
 
     if (appState.mode === "singleplayer") {
       appState.blasterReadyAt = Date.now() + 400 * 1000;
@@ -1302,6 +1321,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       this.roundStartMs = Date.now();
       this.phaseEndsMs = this.roundStartMs + DRAW_SECONDS * 1000;
       appState.phase = "drawing";
+      appState.drawStartedAt = this.roundStartMs;
 
       const drawer = this.players.find((p) => p.id === this.drawerId);
       scene3d.setDrawerSketching(true);
@@ -1381,7 +1401,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const pickDecoy = () => decoys[Math.floor(Math.random() * decoys.length)];
 
       // Realistic staggered guesses from the competing bot, giving human plenty of time first
-      const schedule = [14000, 28000, 41000];
+      const schedule = [11000, 22000, 32000];
       schedule.forEach((delay) => {
         this.addTimeout(() => {
           if (!this.active || this.phase !== "drawing") return;
@@ -1393,8 +1413,8 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         }, delay);
       });
 
-      // Late solve at ~51-56.5s if human still hasn't solved it
-      const solveAt = 51000 + Math.random() * 5500;
+      // Late solve at ~38-42.5s if human still hasn't solved it
+      const solveAt = 38000 + Math.random() * 4500;
       this.addTimeout(() => {
         if (!this.active || this.phase !== "drawing") return;
         this.finishRound("guessed", otherBot);
@@ -1432,6 +1452,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         if (
           this.botBlasterReadyAt &&
           Date.now() >= (this.botBlasterReadyAt[bot.id] || Infinity) &&
+          Date.now() - this.roundStartMs < BLASTER_WINDOW_MS &&
           completeness >= 0.25
         ) {
           this.botBlasterReadyAt[bot.id] = Date.now() + 400 * 1000;
@@ -1450,7 +1471,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         }
 
         // Bots cannot solve an empty/barely started canvas; more complete drawings solve faster!
-        const requiredSeconds = Math.max(20, 44 - completeness * 20);
+        const requiredSeconds = Math.max(16, 36 - completeness * 16);
         if (completeness >= 0.48 && elapsedSec >= requiredSeconds) {
           this.finishRound("guessed", bot);
           return;
@@ -1585,6 +1606,11 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
   let socket = null;
 
+  function wakeBackendHealth() {
+    if (!/^https?:/i.test(BACKEND_URL)) return;
+    fetch(`${BACKEND_URL}/health`, { mode: "cors", cache: "no-store" }).catch(() => {});
+  }
+
   function initSocketConnection() {
     if (typeof window.io !== "function") {
       serverStatusPill.className = "server-pill offline";
@@ -1592,10 +1618,17 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       return;
     }
 
+    serverStatusPill.className = "server-pill offline";
+    serverStatusPill.textContent = "● Connecting to online server...";
+    wakeBackendHealth();
+
     socket = window.io(BACKEND_URL, {
-      transports: ["websocket", "polling"],
-      reconnectionAttempts: 5,
-      timeout: 6000
+      transports: ["polling", "websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1500,
+      reconnectionDelayMax: 5000,
+      timeout: 45000
     });
 
     socket.on("connect", () => {
@@ -1605,7 +1638,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
     socket.on("disconnect", () => {
       serverStatusPill.className = "server-pill offline";
-      serverStatusPill.textContent = "● Server Offline — Single Player Ready";
+      serverStatusPill.textContent = "● Server Disconnected — Reconnecting...";
       if (appState.mode === "multiplayer") {
         showError(
           menuError,
@@ -1617,7 +1650,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
     socket.on("connect_error", () => {
       serverStatusPill.className = "server-pill offline";
-      serverStatusPill.textContent = "● Server Offline — Single Player Ready";
+      serverStatusPill.textContent = "● Waking online server... Single Player Ready";
     });
 
     socket.on("room_state", (state) => {
@@ -1709,6 +1742,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       wordChoiceModal.classList.add("hidden");
       appState.phase = "drawing";
       appState.drawerId = payload.drawerId;
+      appState.drawStartedAt = Date.now();
       updateBlasterUI();
 
       hudRoundBadge.textContent = `Round ${payload.round} / ${payload.maxRounds}`;
@@ -1787,6 +1821,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     socket.on("round_end", (payload) => {
       if (appState.mode !== "multiplayer") return;
       appState.phase = "round_end";
+      appState.drawStartedAt = 0;
       closeDrawerPad();
       updateBlasterUI();
       wordChoiceModal.classList.add("hidden");
@@ -1862,44 +1897,127 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
     });
   });
 
-  btnCreateRoom.addEventListener("click", () => {
-    const nickname = getValidatedNickname();
-    if (!nickname) return;
-    if (!socket || !socket.connected) {
+  function ensureSocketConnected(btn, busyText, idleText, onReady) {
+    if (!socket) {
       showError(
         menuError,
-        `Cannot reach server at ${BACKEND_URL}. Start the backend or try Single Player vs. Bots!`
+        `Online connection unavailable (${BACKEND_URL}). Refresh or play Single Player vs. Bots!`
       );
       return;
     }
+    if (socket.connected) {
+      onReady();
+      return;
+    }
 
-    btnCreateRoom.disabled = true;
-    socket.emit("create_room", { nickname, avatar: avatarConfig }, (res) => {
-      btnCreateRoom.disabled = false;
+    btn.disabled = true;
+    btn.textContent = busyText;
+    showError(
+      menuError,
+      "Waking up online server (can take 15–45s on Render)... Continuing automatically once connected."
+    );
+    wakeBackendHealth();
+    socket.connect();
+
+    let finished = false;
+    const cleanup = () => {
+      socket.off("connect", onConnect);
+      clearTimeout(waitTimer);
+    };
+    const onConnect = () => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      showError(menuError, "");
+      btn.textContent = idleText;
+      btn.disabled = false;
+      if (appState.mode === "menu" && !menuOverlay.classList.contains("hidden")) {
+        onReady();
+      }
+    };
+    const waitTimer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      btn.textContent = idleText;
+      btn.disabled = false;
+      showError(
+        menuError,
+        `Cannot reach server at ${BACKEND_URL}. Wait a few seconds and click again, or play Single Player vs. Bots!`
+      );
+    }, 45000);
+
+    socket.once("connect", onConnect);
+  }
+
+  function enterMultiplayerLobby(res, systemMsg) {
+    showError(menuError, "");
+    clearChat();
+    appState.mode = "multiplayer";
+    appState.selfId = res.playerId;
+    appState.roomCode = res.roomCode;
+    appState.hostId = res.room.hostId;
+    appState.players = res.room.players;
+
+    showError(lobbyError, "");
+    menuOverlay.classList.add("hidden");
+    lobbyOverlay.classList.remove("hidden");
+    btnChatToggle.classList.remove("hidden");
+    setChatOpen(false);
+    setChatInputState(true, "Chat with your lobby...");
+    if (systemMsg) {
+      appendChatMessage({ type: "system", text: systemMsg });
+    }
+    updateLobbyUI(res.room);
+    scene3d.syncPlayers(res.room.players, null);
+  }
+
+  function emitRoomRequest({ btn, busyText, idleText, event, payload, fallbackError, getSystemMsg }) {
+    btn.disabled = true;
+    btn.textContent = busyText;
+
+    let settled = false;
+    const ackTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      btn.disabled = false;
+      btn.textContent = idleText;
+      showError(menuError, "Server took too long to respond. Please try again.");
+    }, 15000);
+
+    socket.emit(event, payload, (res) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(ackTimer);
+      btn.disabled = false;
+      btn.textContent = idleText;
       if (!res || !res.ok) {
-        showError(menuError, (res && res.error) || "Failed to create room.");
+        showError(menuError, (res && res.error) || fallbackError);
         return;
       }
-      clearChat();
-      appState.mode = "multiplayer";
-      appState.selfId = res.playerId;
-      appState.roomCode = res.roomCode;
-      appState.hostId = res.room.hostId;
-      appState.players = res.room.players;
-
-      showError(lobbyError, "");
-      menuOverlay.classList.add("hidden");
-      lobbyOverlay.classList.remove("hidden");
-      btnChatToggle.classList.remove("hidden");
-      setChatOpen(false);
-      setChatInputState(true, "Chat with your lobby...");
-      appendChatMessage({
-        type: "system",
-        text: `Room ${res.roomCode} created! Share the code with friends or add a bot in the lobby.`
-      });
-      updateLobbyUI(res.room);
-      scene3d.syncPlayers(res.room.players, null);
+      enterMultiplayerLobby(res, getSystemMsg ? getSystemMsg(res) : null);
     });
+  }
+
+  btnCreateRoom.addEventListener("click", () => {
+    const nickname = getValidatedNickname();
+    if (!nickname) return;
+    ensureSocketConnected(
+      btnCreateRoom,
+      "⏳ Waking Server...",
+      "✨ Create Online Room",
+      () =>
+        emitRoomRequest({
+          btn: btnCreateRoom,
+          busyText: "⏳ Creating Room...",
+          idleText: "✨ Create Online Room",
+          event: "create_room",
+          payload: { nickname, avatar: avatarConfig },
+          fallbackError: "Failed to create room.",
+          getSystemMsg: (res) =>
+            `Room ${res.roomCode} created! Share the code with friends or add a bot in the lobby.`
+        })
+    );
   });
 
   btnJoinRoom.addEventListener("click", () => {
@@ -1912,37 +2030,20 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       roomCodeInput.focus();
       return;
     }
-    if (!socket || !socket.connected) {
-      showError(
-        menuError,
-        `Cannot reach server at ${BACKEND_URL}. Start the backend or try Single Player vs. Bots!`
-      );
-      return;
-    }
-
-    btnJoinRoom.disabled = true;
-    socket.emit("join_room", { roomCode: code, nickname, avatar: avatarConfig }, (res) => {
-      btnJoinRoom.disabled = false;
-      if (!res || !res.ok) {
-        showError(menuError, (res && res.error) || "Could not join room.");
-        return;
-      }
-      clearChat();
-      appState.mode = "multiplayer";
-      appState.selfId = res.playerId;
-      appState.roomCode = res.roomCode;
-      appState.hostId = res.room.hostId;
-      appState.players = res.room.players;
-
-      showError(lobbyError, "");
-      menuOverlay.classList.add("hidden");
-      lobbyOverlay.classList.remove("hidden");
-      btnChatToggle.classList.remove("hidden");
-      setChatOpen(false);
-      setChatInputState(true, "Chat with your lobby...");
-      updateLobbyUI(res.room);
-      scene3d.syncPlayers(res.room.players, null);
-    });
+    ensureSocketConnected(
+      btnJoinRoom,
+      "⏳ Waking Server...",
+      "Join Room",
+      () =>
+        emitRoomRequest({
+          btn: btnJoinRoom,
+          busyText: "⏳ Joining...",
+          idleText: "Join Room",
+          event: "join_room",
+          payload: { roomCode: code, nickname, avatar: avatarConfig },
+          fallbackError: "Could not join room."
+        })
+    );
   });
 
   roomCodeInput.addEventListener("input", () => {
