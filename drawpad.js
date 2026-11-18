@@ -272,10 +272,24 @@
     _bindPointerEvents() {
       if (!this.miniCanvas) return;
 
+      // Explicitly block WebView/in-app browser scroll & zoom gestures while drawing
+      const blockTouchScroll = (e) => {
+        if (this.enabled) {
+          e.preventDefault();
+        }
+      };
+      this.miniCanvas.addEventListener("touchstart", blockTouchScroll, { passive: false });
+      this.miniCanvas.addEventListener("touchmove", blockTouchScroll, { passive: false });
+
       this.miniCanvas.addEventListener("pointerdown", (e) => {
-        if (!this.enabled || e.button > 0) return;
+        if (!this.enabled) return;
+        if (e.pointerType === "mouse" && e.button > 0) return;
         e.preventDefault();
-        this.miniCanvas.setPointerCapture(e.pointerId);
+        try {
+          this.miniCanvas.setPointerCapture(e.pointerId);
+        } catch (_) {
+          // Some in-app WebViews throw on setPointerCapture
+        }
         this.isDrawing = true;
         this.activePointerId = e.pointerId;
 
@@ -346,6 +360,7 @@
 
       this.miniCanvas.addEventListener("pointerup", endPointer);
       this.miniCanvas.addEventListener("pointercancel", endPointer);
+      this.miniCanvas.addEventListener("lostpointercapture", endPointer);
     }
   }
 

@@ -6,7 +6,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 (function () {
   "use strict";
 
-  const { WORD_POOL, getBotDrawingSegments } = window.GAME_WORDS;
+  const { WORD_POOL, getBotDrawingSegments, getBotDetailSegments } = window.GAME_WORDS;
 
   const MAX_ROUNDS = 10;
   const DRAW_SECONDS = 30;
@@ -1798,16 +1798,45 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const segments = getBotDrawingSegments(word);
       if (!segments.length) return;
 
-      // Scale segment delays so total sketch finishes naturally in ~9-18s
+      // Scale segment delays so total sketch finishes naturally in ~12.5-22s
       const rawTotal = segments.reduce((sum, s) => sum + (s.delayMs || 50), 0);
-      const targetTotal = Math.min(18000, Math.max(9000, rawTotal));
+      const targetTotal = Math.min(22000, Math.max(12500, rawTotal * 1.25));
       const timeScale = rawTotal > 0 ? targetTotal / rawTotal : 1;
       let idx = 0;
+
+      const startDetailPass = () => {
+        if (!this.active || this.phase !== "drawing") return;
+        const detailSegs = getBotDetailSegments(word, segments._transformMeta);
+        if (!detailSegs.length) return;
+        let dIdx = 0;
+        scene3d.setDrawerSketching(true);
+
+        const detailTick = () => {
+          if (!this.active || this.phase !== "drawing") return;
+          if (dIdx >= detailSegs.length) {
+            scene3d.setDrawerSketching(false);
+            this.addTimeout(startDetailPass, 500);
+            return;
+          }
+          whiteboard.applyStroke(detailSegs[dIdx], false);
+          dIdx += 1;
+          if (dIdx >= detailSegs.length) {
+            scene3d.setDrawerSketching(false);
+            this.addTimeout(startDetailPass, 500);
+            return;
+          }
+          const nextDelay = Math.max(60, (detailSegs[dIdx].delayMs || 100) * 1.2);
+          this.addTimeout(detailTick, nextDelay);
+        };
+
+        this.addTimeout(detailTick, 160);
+      };
 
       const drawTick = () => {
         if (!this.active || this.phase !== "drawing") return;
         if (idx >= segments.length) {
           scene3d.setDrawerSketching(false);
+          this.addTimeout(startDetailPass, 7000);
           return;
         }
         const seg = segments[idx];
@@ -1815,9 +1844,10 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         idx += 1;
         if (idx >= segments.length) {
           scene3d.setDrawerSketching(false);
+          this.addTimeout(startDetailPass, 7000);
           return;
         }
-        const nextDelay = Math.max(18, (segments[idx].delayMs || 45) * timeScale);
+        const nextDelay = Math.max(26, (segments[idx].delayMs || 45) * timeScale);
         this.addTimeout(drawTick, nextDelay);
       };
 
@@ -1835,7 +1865,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       const pickDecoy = () => decoys[Math.floor(Math.random() * decoys.length)];
 
       // Realistic staggered guesses from the competing bot, giving human plenty of time first
-      const schedule = [7000, 15000, 21500];
+      const schedule = [8500, 17500, 24000];
       schedule.forEach((delay) => {
         this.addTimeout(() => {
           if (!this.active || this.phase !== "drawing") return;
@@ -1847,8 +1877,8 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         }, delay);
       });
 
-      // Late solve at ~25-28.2s if human still hasn't solved it
-      const solveAt = 25000 + Math.random() * 3200;
+      // Late solve at ~26.5-29s if human still hasn't solved it
+      const solveAt = 26500 + Math.random() * 2500;
       this.addTimeout(() => {
         if (!this.active || this.phase !== "drawing") return;
         this.finishRound("guessed", otherBot);
@@ -1904,9 +1934,9 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
           );
         }
 
-        // Bots cannot solve an empty/barely started canvas; more complete drawings solve faster!
-        const requiredSeconds = Math.max(11, 24 - completeness * 11);
-        if (completeness >= 0.48 && elapsedSec >= requiredSeconds) {
+        // Bots cannot solve until drawing is > 50% done; more complete drawings solve faster!
+        const requiredSeconds = Math.max(15, 27 - completeness * 9);
+        if (completeness > 0.5 && elapsedSec >= requiredSeconds) {
           this.finishRound("guessed", bot);
           return;
         }
@@ -1925,11 +1955,11 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
           });
         }
 
-        const nextDelay = 5000 + Math.random() * 3000;
+        const nextDelay = 6200 + Math.random() * 3300;
         this.addTimeout(attemptBotGuess, nextDelay);
       };
 
-      this.addTimeout(attemptBotGuess, 6500);
+      this.addTimeout(attemptBotGuess, 8000);
     },
 
     handleHumanGuess(rawText) {
@@ -1966,19 +1996,21 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
 
       if (reason === "guessed" && winner) {
         const elapsedMs = Date.now() - this.roundStartMs;
-        const pts = elapsedMs < 30000 ? 8 : 5;
-        winner.score += pts;
-        if (drawer) drawer.score += pts;
+        const isFastBonus = elapsedMs < 15000;
+        const guesserPts = isFastBonus ? 10 : 6;
+        const drawerPts = isFastBonus ? 8 : 5;
+        winner.score += guesserPts;
+        if (drawer) drawer.score += drawerPts;
 
         soundFX.correct();
         scene3d.celebratePlayer(winner.id);
         appendChatMessage({
           type: "correct",
-          text: `🎉 ${winner.name}: ${this.currentWord} (+${pts} pts)`
+          text: `🎉 ${winner.name}: ${this.currentWord} (+${guesserPts} pts)`
         });
         showBanner(
           `🎉 ${winner.name} guessed "${wordUpper}"!`,
-          `${winner.name} +${pts} pts • ${drawer.name} +${pts} pts`,
+          `${winner.name} +${guesserPts} pts • ${drawer ? `${drawer.name} +${drawerPts} pts` : ""}`,
           ROUND_END_PAUSE_MS - 300
         );
       } else {
@@ -2270,11 +2302,15 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       if (wordUpper) hudWordBox.textContent = wordUpper;
 
       if (payload.reason === "guessed" && payload.guesserName) {
+        const drawerPts =
+          typeof payload.drawerDelta === "number"
+            ? payload.drawerDelta
+            : payload.pointsAwarded;
         soundFX.correct();
         scene3d.celebratePlayer(payload.guesserId);
         showBanner(
           `🎉 ${payload.guesserName} guessed "${wordUpper}"!`,
-          `${payload.guesserName} +${payload.pointsAwarded} pts • ${payload.drawerName} +${payload.pointsAwarded} pts`,
+          `${payload.guesserName} +${payload.pointsAwarded} pts • ${payload.drawerName} +${drawerPts} pts`,
           ROUND_END_PAUSE_MS - 200
         );
       } else if (payload.reason === "timeout") {
@@ -2314,7 +2350,7 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       setTimeout(() => {
         splashScreen.classList.add("hidden");
       }, 450);
-    }, 4550);
+    }, 2550);
   }
 
   // ============================================================================

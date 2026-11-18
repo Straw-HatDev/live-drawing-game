@@ -1259,47 +1259,94 @@
       Star(Y, 7, 0.50, 0.50, 0.14, 0.06, 5)
     ];
 
-    // Slight per-drawing placement, tilt, and scale so drawings aren't laser-centered
-    const shiftX = (Math.random() - 0.5) * 0.05;
-    const shiftY = (Math.random() - 0.5) * 0.04;
-    const scale = 0.94 + Math.random() * 0.11;
-    const tilt = (Math.random() - 0.5) * 0.09;
+    // Messy human placement, crooked tilt, and size variance
+    const shiftX = (Math.random() - 0.5) * 0.11;
+    const shiftY = (Math.random() - 0.5) * 0.08;
+    const scale = 0.78 + Math.random() * 0.32;
+    const tilt = (Math.random() - 0.5) * 0.24;
     const cosT = Math.cos(tilt);
     const sinT = Math.sin(tilt);
 
-    const transformPt = ([px, py]) => {
+    const transformPt = ([px, py], slipX = 0, slipY = 0) => {
       const dx = (px - 0.5) * scale;
       const dy = (py - 0.5) * scale;
-      const rx = dx * cosT - dy * sinT + 0.5 + shiftX;
-      const ry = dx * sinT + dy * cosT + 0.5 + shiftY;
+      const rx = dx * cosT - dy * sinT + 0.5 + shiftX + slipX;
+      const ry = dx * sinT + dy * cosT + 0.5 + shiftY + slipY;
       return [
-        Math.max(0.06, Math.min(0.94, rx)),
-        Math.max(0.06, Math.min(0.94, ry))
+        Math.max(0.05, Math.min(0.95, rx)),
+        Math.max(0.05, Math.min(0.95, ry))
       ];
     };
+
+    // Build augmented stroke list: outlines + a small messy coloring-in scribble
+    // inside up to 2 main colored shapes so players get clear color clues
+    const workingStrokes = [];
+    let colorFillCount = 0;
+    for (let i = 0; i < recipe.length; i += 1) {
+      const s = recipe[i];
+      workingStrokes.push(s);
+      const pts = s.pts || [];
+      if (colorFillCount < 2 && pts.length >= 4 && s.color !== K) {
+        let minX = 1, maxX = 0, minY = 1, maxY = 0;
+        for (const [px, py] of pts) {
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (py < minY) minY = py;
+          if (py > maxY) maxY = py;
+        }
+        const bw = maxX - minX;
+        const bh = maxY - minY;
+        if (bw >= 0.11 && bh >= 0.11) {
+          colorFillCount += 1;
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          const rx = bw * 0.26;
+          const ry = bh * 0.24;
+          const scribblePts = [
+            [cx - rx, cy - ry * 0.75],
+            [cx + rx * 0.9, cy - ry * 0.35],
+            [cx - rx * 0.85, cy + ry * 0.15],
+            [cx + rx, cy + ry * 0.65],
+            [cx - rx * 0.6, cy + ry * 0.85]
+          ];
+          workingStrokes.push({
+            color: s.color,
+            size: Math.min(20, Math.max(10, Math.round((s.size || 8) * 1.6))),
+            pts: scribblePts,
+            isColorFill: true
+          });
+        }
+      }
+    }
 
     const segments = [];
     let prevColor = null;
 
-    for (let strokeIdx = 0; strokeIdx < recipe.length; strokeIdx += 1) {
-      const stroke = recipe[strokeIdx];
+    for (let strokeIdx = 0; strokeIdx < workingStrokes.length; strokeIdx += 1) {
+      const stroke = workingStrokes[strokeIdx];
       const rawPts = stroke.pts || [];
       if (!rawPts.length) continue;
 
-      const pts = rawPts.map(transformPt);
+      // Noticeable per-stroke misalignment so parts don't line up cleanly
+      const slipScale = stroke.isColorFill ? 0.015 : 0.036;
+      const slipX = strokeIdx === 0 ? 0 : (Math.random() - 0.5) * slipScale;
+      const slipY = strokeIdx === 0 ? 0 : (Math.random() - 0.5) * slipScale;
+      const pts = rawPts.map((pt) => transformPt(pt, slipX, slipY));
       const sizeJitter = Math.max(
         2,
-        Math.round(stroke.size * (0.9 + Math.random() * 0.2))
+        Math.round(stroke.size * (0.8 + Math.random() * 0.42))
       );
 
       // Pause longer when switching colors, shorter between normal pen lifts
       const colorChanged = prevColor && prevColor !== stroke.color;
       const startPauseMs =
         strokeIdx === 0
-          ? 450
+          ? 420
+          : stroke.isColorFill
+          ? 160 + Math.random() * 140
           : colorChanged
           ? 420 + Math.random() * 380
-          : 180 + Math.random() * 240;
+          : 200 + Math.random() * 260;
       prevColor = stroke.color;
 
       if (pts.length === 1) {
@@ -1316,17 +1363,16 @@
         continue;
       }
 
-      // Build organic polyline path with slight endpoint drift & subtle hand bow
-      let prevX = pts[0][0] + (Math.random() - 0.5) * 0.012;
-      let prevY = pts[0][1] + (Math.random() - 0.5) * 0.012;
+      // Build wobbly, imperfect polyline path with hand tremor and missed joins
+      let prevX = pts[0][0] + (Math.random() - 0.5) * 0.032;
+      let prevY = pts[0][1] + (Math.random() - 0.5) * 0.032;
       let isFirstSegOfStroke = true;
 
       for (let i = 0; i < pts.length - 1; i += 1) {
         const ax = prevX;
         const ay = prevY;
         const isLastEdge = i === pts.length - 2;
-        // Slight corner imprecision so geometric shapes don't snap pixel-perfectly
-        const endJitter = isLastEdge ? 0.014 : 0.009;
+        const endJitter = isLastEdge ? 0.042 : 0.026;
         const bx = pts[i + 1][0] + (Math.random() - 0.5) * endJitter;
         const by = pts[i + 1][1] + (Math.random() - 0.5) * endJitter;
 
@@ -1337,11 +1383,11 @@
 
         const nx = -dy / dist;
         const ny = dx / dist;
-        const subSteps = Math.max(2, Math.min(10, Math.ceil(dist / 0.028)));
-        const bow = (Math.random() - 0.5) * Math.min(0.018, dist * 0.14);
-        const waveFreq = 1.5 + Math.random() * 2.0;
+        const subSteps = Math.max(2, Math.min(9, Math.ceil(dist / 0.032)));
+        const bow = (Math.random() - 0.5) * Math.min(0.055, dist * 0.34);
+        const waveFreq = 1.8 + Math.random() * 3.2;
         const wavePhase = Math.random() * Math.PI * 2;
-        const waveAmp = Math.min(0.0055, dist * 0.045);
+        const waveAmp = Math.min(0.018, dist * 0.13);
 
         let curX = ax;
         let curY = ay;
@@ -1384,12 +1430,123 @@
         prevY = curY;
       }
     }
+    segments._transformMeta = { shiftX, shiftY, scale, tilt };
+    return segments;
+  }
+
+  /**
+   * Generate additional shading and cleaner detail strokes aligned to an existing
+   * bot sketch when no one has guessed the word 7 seconds after finishing.
+   */
+  function getBotDetailSegments(word, meta = null) {
+    const recipe = BOT_DRAWINGS[word] || [
+      C(B, 9, 0.50, 0.50, 0.20),
+      Star(Y, 7, 0.50, 0.50, 0.14, 0.06, 5)
+    ];
+    const m = meta || { shiftX: 0, shiftY: 0, scale: 0.9, tilt: 0 };
+    const cosT = Math.cos(m.tilt);
+    const sinT = Math.sin(m.tilt);
+
+    const transformPt = ([px, py]) => {
+      const dx = (px - 0.5) * m.scale;
+      const dy = (py - 0.5) * m.scale;
+      const rx = dx * cosT - dy * sinT + 0.5 + m.shiftX;
+      const ry = dx * sinT + dy * cosT + 0.5 + m.shiftY;
+      return [
+        Math.max(0.05, Math.min(0.95, rx)),
+        Math.max(0.05, Math.min(0.95, ry))
+      ];
+    };
+
+    const detailStrokes = [];
+    for (let i = 0; i < recipe.length; i += 1) {
+      const s = recipe[i];
+      const pts = s.pts || [];
+      if (pts.length >= 4 && s.color !== K) {
+        let minX = 1, maxX = 0, minY = 1, maxY = 0;
+        for (const [px, py] of pts) {
+          if (px < minX) minX = px;
+          if (px > maxX) maxX = px;
+          if (py < minY) minY = py;
+          if (py > maxY) maxY = py;
+        }
+        const bw = maxX - minX;
+        const bh = maxY - minY;
+        if (bw >= 0.08 && bh >= 0.08) {
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          const rx = bw * 0.3;
+          const ry = bh * 0.28;
+          detailStrokes.push({
+            color: s.color,
+            size: Math.min(18, Math.max(8, Math.round((s.size || 8) * 1.35))),
+            pts: [
+              [cx - rx, cy - ry * 0.6],
+              [cx + rx, cy - ry * 0.6],
+              [cx - rx * 0.9, cy],
+              [cx + rx * 0.9, cy],
+              [cx - rx, cy + ry * 0.6],
+              [cx + rx, cy + ry * 0.6]
+            ]
+          });
+        }
+      }
+      // Reinforce original stroke with cleaner precision
+      detailStrokes.push(s);
+    }
+
+    const segments = [];
+    for (let si = 0; si < detailStrokes.length; si += 1) {
+      const stroke = detailStrokes[si];
+      const pts = (stroke.pts || []).map(transformPt);
+      if (!pts.length) continue;
+      if (pts.length === 1) {
+        segments.push({
+          x0: pts[0][0],
+          y0: pts[0][1],
+          x1: pts[0][0],
+          y1: pts[0][1],
+          color: stroke.color,
+          size: Math.max(3, stroke.size || 6),
+          isDot: true,
+          delayMs: 220
+        });
+        continue;
+      }
+      for (let i = 0; i < pts.length - 1; i += 1) {
+        const [ax, ay] = pts[i];
+        const [bx, by] = pts[i + 1];
+        const dist = Math.hypot(bx - ax, by - ay);
+        if (dist < 0.001) continue;
+        const steps = Math.max(1, Math.min(5, Math.ceil(dist / 0.05)));
+        let cx = ax;
+        let cy = ay;
+        for (let st = 1; st <= steps; st += 1) {
+          const t = st / steps;
+          const nx = ax + (bx - ax) * t + (Math.random() - 0.5) * 0.006;
+          const ny = ay + (by - ay) * t + (Math.random() - 0.5) * 0.006;
+          segments.push({
+            x0: cx,
+            y0: cy,
+            x1: Math.max(0.04, Math.min(0.96, nx)),
+            y1: Math.max(0.04, Math.min(0.96, ny)),
+            color: stroke.color,
+            size: Math.max(3, stroke.size || 6),
+            isDot: false,
+            delayMs: i === 0 && st === 1 ? 260 : 75
+          });
+          cx = Math.max(0.04, Math.min(0.96, nx));
+          cy = Math.max(0.04, Math.min(0.96, ny));
+        }
+      }
+    }
     return segments;
   }
 
   global.GAME_WORDS = {
     WORD_POOL,
     BOT_DRAWINGS,
-    getBotDrawingSegments
+    getBotDrawingSegments,
+    getBotDetailSegments
   };
 })(window);
