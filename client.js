@@ -257,6 +257,26 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       accent: "#fb923c",
       accent2: "#facc15",
       text: "#fff7ed"
+    },
+    lenny: {
+      id: "lenny",
+      label: "Lenny",
+      shirt: "#2a0a0a",
+      shirt2: "#7c2d12",
+      sleeve: "#b91c1c",
+      accent: "#facc15",
+      accent2: "#fb923c",
+      text: "#fef9c3"
+    },
+    remig: {
+      id: "remig",
+      label: "Remig",
+      shirt: "#f8fafc",
+      shirt2: "#e7d8b9",
+      sleeve: "#d6be8a",
+      accent: "#ca8a04",
+      accent2: "#0284c7",
+      text: "#fef3c7"
     }
   };
 
@@ -318,6 +338,16 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
         `<circle cx="106" cy="96" r="2.2" fill="${decalSkin.accent}" class="decal-twinkle" style="animation-delay:0.5s"/>` +
         `<circle cx="56" cy="130" r="2" fill="${decalSkin.accent}" class="decal-twinkle" style="animation-delay:0.9s"/>` +
         `<circle cx="104" cy="130" r="2" fill="${decalSkin.accent2}" class="decal-twinkle" style="animation-delay:0.3s"/>`;
+    } else if (decalSkin.id === "lenny") {
+      motif =
+        `<path d="M50 136 Q60 118 68 130 Q78 112 88 128 Q98 116 110 136" fill="none" stroke="${decalSkin.accent}" stroke-width="2.2" class="decal-pulse"/>` +
+        `<circle cx="56" cy="96" r="2" fill="${decalSkin.accent2}" class="decal-twinkle"/>` +
+        `<circle cx="104" cy="96" r="2" fill="${decalSkin.accent}" class="decal-twinkle" style="animation-delay:0.4s"/>`;
+    } else if (decalSkin.id === "remig") {
+      motif =
+        `<polygon points="80,88 94,102 80,136 66,102" fill="none" stroke="${decalSkin.accent}" stroke-width="1.6" opacity="0.7" class="decal-pulse"/>` +
+        `<line x1="44" y1="130" x2="116" y2="130" stroke="${decalSkin.accent}" stroke-width="2"/>` +
+        `<line x1="44" y1="135" x2="116" y2="135" stroke="${decalSkin.accent2}" stroke-width="1.5"/>`;
     } else {
       motif =
         `<path d="M44 128 Q62 118 80 128 T116 128" fill="none" stroke="${decalSkin.accent}" stroke-width="2.2" class="decal-pulse"/>` +
@@ -547,16 +577,48 @@ const BACKEND_URL = "https://drawing-game-backend-ul2q.onrender.com";
       };
     }
     // tubz: Inferno Puffer + Shoulder Flames
+    if (id === "tubz") {
+      return {
+        back:
+          `<g class="decal-pulse">` +
+          `<path d="M26 88 Q20 66 34 58 Q38 74 44 82 Z" fill="${decalSkin.accent2}"/>` +
+          `<path d="M134 88 Q140 66 126 58 Q122 74 116 82 Z" fill="${decalSkin.accent2}"/>` +
+          `</g>`,
+        over:
+          `<rect x="40" y="79" width="80" height="12" rx="6" fill="${decalSkin.sleeve}" stroke="${decalSkin.accent2}" stroke-width="1.5"/>` +
+          `<line x1="44" y1="101" x2="116" y2="101" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>` +
+          `<line x1="44" y1="126" x2="116" y2="126" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>`,
+        top: ""
+      };
+    }
+    if (id === "lenny") {
+      // Fire Suit with Golden Sword on back
+      return {
+        back:
+          `<g transform="rotate(34 80 100)">` +
+          `<polygon points="75,18 80,4 85,18 85,84 75,84" fill="#fde047" stroke="#b45309" stroke-width="1.6"/>` +
+          `<rect x="65" y="82" width="30" height="6" rx="3" fill="#f59e0b" stroke="#78350f" stroke-width="1.2"/>` +
+          `<rect x="77" y="88" width="6" height="14" rx="2" fill="#78350f"/>` +
+          `</g>` +
+          `<g class="decal-pulse">` +
+          `<path d="M26 90 Q18 66 35 56 Q40 72 44 84 Z" fill="${decalSkin.accent2}"/>` +
+          `<path d="M134 90 Q142 66 125 56 Q120 72 116 84 Z" fill="${decalSkin.accent2}"/>` +
+          `</g>`,
+        over:
+          `<path d="M44 86 L116 134" stroke="#facc15" stroke-width="3.5" stroke-linecap="round"/>` +
+          `<rect x="42" y="80" width="76" height="8" rx="4" fill="#ef4444" stroke="#facc15" stroke-width="1.4"/>`,
+        top: ""
+      };
+    }
+    // remig: White & Beige Egyptian-style Robes
     return {
       back:
-        `<g class="decal-pulse">` +
-        `<path d="M26 88 Q20 66 34 58 Q38 74 44 82 Z" fill="${decalSkin.accent2}"/>` +
-        `<path d="M134 88 Q140 66 126 58 Q122 74 116 82 Z" fill="${decalSkin.accent2}"/>` +
-        `</g>`,
+        `<path d="M42 84 L20 144 Q80 152 140 144 L118 84 Z" fill="#e7d8b9" stroke="#ca8a04" stroke-width="2"/>` +
+        `<path d="M26 92 L16 130 L34 128 Z" fill="#f8fafc" stroke="#d6be8a" stroke-width="1.5"/>` +
+        `<path d="M134 92 L144 130 L126 128 Z" fill="#f8fafc" stroke="#d6be8a" stroke-width="1.5"/>`,
       over:
-        `<rect x="40" y="79" width="80" height="12" rx="6" fill="${decalSkin.sleeve}" stroke="${decalSkin.accent2}" stroke-width="1.5"/>` +
-        `<line x1="44" y1="101" x2="116" y2="101" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>` +
-        `<line x1="44" y1="126" x2="116" y2="126" stroke="rgba(255,255,255,0.22)" stroke-width="2"/>`,
+        `<path d="M52 82 Q80 106 108 82 L100 94 Q80 112 60 94 Z" fill="#eab308" stroke="#854d0e" stroke-width="1.4"/>` +
+        `<path d="M62 84 Q80 100 98 84" fill="none" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>`,
       top: ""
     };
   }

@@ -848,6 +848,26 @@
           accent: "#fb923c",
           accent2: "#facc15",
           text: "#fff7ed"
+        },
+        lenny: {
+          id: "lenny",
+          label: "Lenny",
+          shirt: "#2a0a0a",
+          shirt2: "#7c2d12",
+          sleeve: "#b91c1c",
+          accent: "#facc15",
+          accent2: "#fb923c",
+          text: "#fef9c3"
+        },
+        remig: {
+          id: "remig",
+          label: "Remig",
+          shirt: "#f8fafc",
+          shirt2: "#e7d8b9",
+          sleeve: "#d6be8a",
+          accent: "#ca8a04",
+          accent2: "#0284c7",
+          text: "#fef3c7"
         }
       };
       return skins[decalId] || null;
@@ -925,6 +945,24 @@
           ctx.arc(sx, sy, Math.max(2, r), 0, Math.PI * 2);
           ctx.fill();
         }
+      } else if (id === "remig") {
+        // Egyptian gold pyramid & sun-disc motif on white/beige robes
+        const glow = 0.55 + 0.45 * Math.sin(elapsedSec * 2.8);
+        ctx.strokeStyle = skin.accent;
+        ctx.lineWidth = 5;
+        ctx.globalAlpha = glow;
+        ctx.beginPath();
+        ctx.moveTo(46, 214);
+        ctx.lineTo(128, 48);
+        ctx.lineTo(210, 214);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.strokeStyle = skin.accent2;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(16, 224);
+        ctx.lineTo(240, 224);
+        ctx.stroke();
       } else {
         ctx.lineWidth = 6;
         for (let row = 0; row < 2; row += 1) {
@@ -1293,6 +1331,57 @@
           root.add(flame);
           animParts.push({ type: "pulseScale", obj: flame, base: 1, amp: 0.22, speed: 6.5, phase: idx * 1.4 });
         });
+      } else if (decalId === "lenny") {
+        // Fire suit shoulder flames + diagonal golden sword strapped across back
+        [-1, 1].forEach((side, idx) => {
+          const flame = new THREE.Mesh(
+            new THREE.ConeGeometry(0.08, 0.24, 5),
+            idx === 0 ? accentMat : accent2Mat
+          );
+          flame.position.set(side * 0.34, 0.68, 0.02);
+          root.add(flame);
+          animParts.push({ type: "pulseScale", obj: flame, base: 1, amp: 0.24, speed: 7.0, phase: idx * 1.2 });
+        });
+
+        const sword = new THREE.Group();
+        sword.position.set(0.04, 0.56, -0.22);
+        sword.rotation.z = -0.58;
+        const goldBladeMat = new THREE.MeshLambertMaterial({
+          color: 0xfde047,
+          emissive: 0xca8a04,
+          emissiveIntensity: 0.35
+        });
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.66, 0.025), goldBladeMat);
+        blade.position.y = 0.22;
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.052, 0.14, 4), goldBladeMat);
+        tip.position.y = 0.61;
+        tip.rotation.y = Math.PI / 4;
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.045, 0.05), goldBladeMat);
+        guard.position.y = -0.1;
+        const hilt = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.026, 0.026, 0.16, 6),
+          new THREE.MeshLambertMaterial({ color: 0x78350f })
+        );
+        hilt.position.y = -0.2;
+        sword.add(blade, tip, guard, hilt);
+        root.add(sword);
+      } else if (decalId === "remig") {
+        // White & beige Egyptian-style flared robes + golden pharaoh collar
+        const robeHem = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.31, 0.49, 0.34, 8),
+          new THREE.MeshLambertMaterial({ color: 0xe7d8b9 })
+        );
+        robeHem.position.set(0, 0.13, 0.04);
+        robeHem.castShadow = true;
+        root.add(robeHem);
+
+        const collar = new THREE.Mesh(
+          new THREE.TorusGeometry(0.22, 0.042, 6, 16),
+          accentMat
+        );
+        collar.rotation.x = Math.PI / 2;
+        collar.position.set(0, 0.63, 0.02);
+        root.add(collar);
       }
 
       return animParts;
