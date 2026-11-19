@@ -214,8 +214,8 @@
       const trimMat = new THREE.MeshLambertMaterial({ color: 0x9c7344 });
 
       // Front classroom wall behind whiteboard & spinwheel (z = -9.6)
-      const frontUpper = new THREE.Mesh(new THREE.BoxGeometry(34, 13, 0.4), frontWallMat);
-      frontUpper.position.set(0.5, 6.5, -9.6);
+      const frontUpper = new THREE.Mesh(new THREE.BoxGeometry(34, 18, 0.4), frontWallMat);
+      frontUpper.position.set(0.5, 9.0, -9.6);
       frontUpper.receiveShadow = true;
       this.scene.add(frontUpper);
 
@@ -229,8 +229,8 @@
       this.scene.add(frontRail);
 
       // Left wall with 3 bright sunlit windows (x = -14.2)
-      const leftUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 13, 36), upperWallMat);
-      leftUpper.position.set(-14.2, 6.5, 4);
+      const leftUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 18, 36), upperWallMat);
+      leftUpper.position.set(-14.2, 9.0, 4);
       leftUpper.receiveShadow = true;
       this.scene.add(leftUpper);
 
@@ -251,8 +251,8 @@
       });
 
       // Right wall with cork bulletin board (x = 15.2)
-      const rightUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 13, 36), upperWallMat);
-      rightUpper.position.set(15.2, 6.5, 4);
+      const rightUpper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 18, 36), upperWallMat);
+      rightUpper.position.set(15.2, 9.0, 4);
       rightUpper.receiveShadow = true;
       this.scene.add(rightUpper);
 
@@ -1932,14 +1932,14 @@
 
       if (this.cameraMode === "spin") {
         // Frame the 3D spinwheel on the left of the massive whiteboard
-        const spinZ = isPortrait ? 3.2 : aspect < 1.15 ? 2.0 : 0.4;
+        const spinZ = isPortrait ? 1.8 : aspect < 1.15 ? 2.0 : 0.4;
         this.desiredCamPos.set(-4.35, 4.5, spinZ);
         this.desiredLookAt.set(-6.0, 4.35, -6.8);
       } else if (this.cameraMode === "gameplay") {
         // Frame guessers, full whiteboard, and the drawer desk on the right
         if (isPortrait) {
-          this.desiredCamPos.set(1.0, 9.6, 22.6);
-          this.desiredLookAt.set(1.75, 2.3, -4.8);
+          this.desiredCamPos.set(1.0, 7.6, 16.2);
+          this.desiredLookAt.set(1.3, 2.15, -4.6);
         } else {
           const narrowOffset = aspect < 1.15 ? 2.8 : 0;
           this.desiredCamPos.set(0.7, 7.9 + narrowOffset * 0.35, 15.0 + narrowOffset);
@@ -1947,8 +1947,8 @@
         }
       } else if (this.cameraMode === "gameover") {
         if (isPortrait) {
-          this.desiredCamPos.set(1.0, 8.2, 18.8);
-          this.desiredLookAt.set(1.5, 2.4, -4.8);
+          this.desiredCamPos.set(1.0, 7.0, 14.2);
+          this.desiredLookAt.set(1.2, 2.2, -4.8);
         } else {
           const narrowOffset = aspect < 1.15 ? 2.6 : 0;
           this.desiredCamPos.set(0.7, 6.9, 12.6 + narrowOffset);
@@ -1957,8 +1957,8 @@
       } else {
         // Scenic menu/lobby view
         if (isPortrait) {
-          this.desiredCamPos.set(1.0, 9.6, 22.8);
-          this.desiredLookAt.set(1.6, 2.5, -4.6);
+          this.desiredCamPos.set(0.9, 7.8, 16.5);
+          this.desiredLookAt.set(1.1, 2.3, -4.5);
         } else {
           const narrowOffset = aspect < 1.15 ? 2.6 : 0;
           this.desiredCamPos.set(0.6, 8.1, 15.8 + narrowOffset);
@@ -1972,8 +1972,8 @@
       const h = window.innerHeight || 720;
       const aspect = w / h;
       this.camera.aspect = aspect;
-      // Wider vertical FOV on narrow portrait phone screens so drawer + all players fit
-      this.camera.fov = aspect < 0.7 ? 65 : aspect < 1 ? 58 : 48;
+      // Keep vertical FOV close to desktop so mobile stays zoomed in and never shows above the wall
+      this.camera.fov = aspect < 0.7 ? 52 : aspect < 1 ? 50 : 48;
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(w, h, false);
       this._updateCameraTargets();
